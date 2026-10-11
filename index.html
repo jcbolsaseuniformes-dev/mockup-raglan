@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Camisa Raglan – Pedido</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;font-family:Nunito,Inter,system-ui,sans-serif;color:#e8edf5;overflow:hidden;
+background:radial-gradient(ellipse 60% 70% at 25% 35%,#2a2c31 0%,#16171a 55%,#0b0b0d 100%)}
+body:after{content:"";position:fixed;inset:auto 0 0 0;height:260px;pointer-events:none;background:radial-gradient(ellipse 45% 100% at 72% 100%,rgba(30,90,200,.18),transparent 70%)}
+.app{display:grid;grid-template-columns:46% 1fr;gap:16px;height:100vh;padding:18px 18px 18px 18px}
+.glass{background:linear-gradient(180deg,rgba(28,36,52,.62),rgba(14,19,30,.62));backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);
+border:1px solid rgba(160,190,230,.16);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)}
+.left{position:relative;display:flex;flex-direction:column;gap:14px;min-height:0}
+#viewer{position:relative;flex:1;min-height:0}#viewer canvas{display:block;width:100%;height:100%;outline:none}
+.tabs{position:absolute;left:0;top:34px;padding:7px;display:flex;flex-direction:column;gap:8px;z-index:3}
+.tab{width:60px;height:62px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;cursor:pointer;color:#dfe6f0;
+background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)}
+.tab:hover{background:rgba(255,255,255,.08)}
+.tab.sel{background:linear-gradient(180deg,#2f8cff,#1767e6);border-color:#5aa6ff;box-shadow:0 0 16px rgba(40,130,255,.55);color:#fff}
+.tab svg{width:26px;height:26px}
+.tools{position:absolute;right:4px;top:18px;display:flex;flex-direction:column;gap:14px;z-index:3}
+.tool{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11.5px;color:#cfd6e0;cursor:pointer;width:64px}
+.circ{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.12),rgba(20,26,38,.7));border:1px solid rgba(170,200,240,.25);backdrop-filter:blur(10px);box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.tool:hover .circ{border-color:#5aa6ff;box-shadow:0 0 12px rgba(60,140,255,.5)}
+.circ svg{width:18px;height:18px}
+#folder{position:absolute;display:none;z-index:4;cursor:pointer;width:40px;height:40px;border-color:rgba(70,150,255,.6);transition:box-shadow .2s}
+#folder:hover{box-shadow:0 0 16px 3px rgba(59,130,246,.6)}
+.thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px;height:148px;flex:none}
+.thumb{border-radius:12px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;align-items:center;cursor:pointer;overflow:hidden;font-size:13px;padding-bottom:6px}
+.thumb canvas{flex:1;min-height:0;width:100%;object-fit:contain}
+.thumb.sel{border:2px solid #2f8cff;box-shadow:0 0 18px rgba(40,130,255,.6),inset 0 0 14px rgba(40,130,255,.25)}
+.right{display:flex;flex-direction:column;gap:10px;min-height:0}
+.cpanel{padding:11px 14px 8px}
+.cpanel h2{margin:0 0 6px;font-size:14.5px;font-weight:700;color:#f2f5fa}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);row-gap:4px}
+.sw{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11.5px;color:#d6dce6;cursor:pointer;white-space:nowrap}
+.dot{width:40px;height:40px;border-radius:50%;position:relative;box-shadow:0 3px 8px rgba(0,0,0,.55),inset 0 -3px 6px rgba(0,0,0,.35);border:1.5px solid rgba(255,255,255,.18);transition:transform .15s}
+.dot:after{content:"";position:absolute;inset:3px 7px 50% 7px;border-radius:50%;background:linear-gradient(rgba(255,255,255,.5),rgba(255,255,255,0))}
+.sw:hover .dot{transform:scale(1.07)}
+.sw.sel .dot{outline:2px solid #3b95ff;outline-offset:3px;box-shadow:0 0 14px rgba(60,150,255,.7)}
+.tpanel{flex:1;min-height:0;display:flex;flex-direction:column;padding:4px 6px 6px}
+.tscroll{overflow:auto;flex:1;min-height:0}
+.tscroll::-webkit-scrollbar{width:6px}.tscroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
+th{position:sticky;top:0;background:rgba(18,24,36,.96);text-align:left;font-weight:600;padding:7px 4px;color:#e2e8f0;z-index:1;border-bottom:1px solid rgba(255,255,255,.07)}
+td{padding:2px 4px;border-bottom:1px solid rgba(255,255,255,.04);height:30px}
+td.n{color:#cdd5e0;text-align:center;width:22px}
+.inp,select{width:100%;height:24px;background:rgba(12,18,30,.75);color:#e8edf5;border:1px solid rgba(255,255,255,.06);border-radius:6px;padding:0 7px;font:inherit;font-size:11.5px}
+.inp::placeholder{color:#8b97a8}
+select{appearance:none;-webkit-appearance:none;padding-right:18px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23cfd6e0' stroke-width='3'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center}
+option{background:#141a26;color:#fff}
+.step{display:flex;align-items:center;gap:3px}.step b{font-weight:600;width:16px;text-align:center}
+.step button{width:20px;height:20px;border-radius:5px;border:1px solid rgba(255,255,255,.08);background:rgba(40,50,68,.8);color:#fff;cursor:pointer;line-height:1;padding:0;font-size:13px}
+.cor{display:flex;align-items:center;gap:7px}.cor i{width:17px;height:17px;border-radius:50%;flex:none;box-shadow:inset 0 -2px 3px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.15)}
+.cor select{background-color:transparent;border-color:transparent}
+.cor select:hover{border-color:rgba(255,255,255,.1)}
+.trash{background:none;border:0;cursor:pointer;color:#dfe6f0;padding:2px;border-left:1px solid rgba(255,255,255,.08);padding-left:10px}
+.trash:hover{color:#ff6b6b}
+.add{margin:6px 4px 0;align-self:flex-start;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#cfd6e0;border-radius:8px;padding:5px 12px;cursor:pointer;font:inherit;font-size:12px}
+.add:hover{background:rgba(255,255,255,.1)}
+.bottom{display:flex;justify-content:flex-end;padding-top:8px}
+#csv{display:flex;align-items:center;gap:14px;justify-content:center;width:270px;height:52px;border-radius:10px;border:1px solid #4aa0ff;cursor:pointer;color:#fff;font:600 15px Nunito,sans-serif;
+background:linear-gradient(180deg,#2b8bff,#1462e0);box-shadow:0 0 26px rgba(30,120,255,.55),inset 0 1px 0 rgba(255,255,255,.25)}
+#csv:hover{filter:brightness(1.1)}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head><body>
+<div class="app">
+ <div class="left">
+  <div id="viewer">
+   <div class="tabs glass" id="tabs"></div>
+   <div class="circ" id="folder" title="Enviar imagem"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b8bff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6"/><path d="m9 13 3-3 3 3"/></svg></div>
+   <input type="file" id="file" accept="image/*" hidden>
+  </div>
+  <div class="thumbs glass" id="thumbs"></div>
+ </div>
+ <div class="right">
+  <div class="cpanel glass"><h2>Escolha a cor da camisa</h2><div class="grid" id="palBody"></div></div>
+  <div class="cpanel glass"><h2>Escolha a cor da manga</h2><div class="grid" id="palSleeve"></div></div>
+  <div class="tpanel glass"><div class="tscroll"><table><thead><tr><th></th><th style="width:78px">Quantidade</th><th>Nome</th><th style="width:62px">Número</th><th style="width:92px">Tamanho</th><th style="width:140px">Cor</th><th style="width:44px">Ações</th></tr></thead><tbody id="tb"></tbody></table></div>
+   <button class="add" id="add">+ Adicionar 10 linhas</button></div>
+  <div class="bottom"><button id="csv"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v3h16v-3"/></svg>Salvar como CSV</button></div>
+ </div>
+</div>
+<script type="module">
+import * as THREE from 'three';import {OrbitControls} from 'three/addons/controls/OrbitControls.js';import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+const COLORS={'Preto':'#0e0e10','Branco':'#f5f5f5','Azul Marinho':'#14295a','Verde Bandeira':'#0f7a2e','Amarelo':'#f7c600','Azul Claro':'#4aa3f5','Vermelho':'#e0101e','Roxo':'#6a1fd8','Marrom':'#5a2e1a','Beje':'#e2c4a4','Cinza Claro':'#b9bcc2','Cinza Escuro':'#3f4248'};
+const SIZES=['PP','P','M','G','GG','XG1','XG2'];
+const H=75;let bodyColor='Branco',sleeveName='Preto';const sleeveColor=new THREE.Color(COLORS['Preto']);
+const viewer=document.getElementById('viewer');
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(2,devicePixelRatio));viewer.prepend(renderer.domElement);
+const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(30,1,1,2000);
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.outputColorSpace=THREE.SRGBColorSpace;
+const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(new RoomEnvironment(),0.04).texture;
+const key=new THREE.DirectionalLight(0xfff6ee,2.0);key.position.set(60,150,160);key.castShadow=true;key.shadow.mapSize.set(2048,2048);key.shadow.radius=8;key.shadow.bias=-0.0005;
+Object.assign(key.shadow.camera,{left:-90,right:90,top:110,bottom:-110,near:10,far:500});scene.add(key);
+const fill=new THREE.DirectionalLight(0xdfe8ff,.6);fill.position.set(-130,40,90);scene.add(fill);
+const rim=new THREE.DirectionalLight(0xcfe0ff,2.2);rim.position.set(-60,90,-160);scene.add(rim);
+const rim2=new THREE.DirectionalLight(0xffffff,1.2);rim2.position.set(90,60,-140);scene.add(rim2);
+scene.add(new THREE.HemisphereLight(0xffffff,0x222226,.3));
+const ground=new THREE.Mesh(new THREE.CircleGeometry(120,64),new THREE.ShadowMaterial({opacity:.22}));ground.rotation.x=-Math.PI/2;ground.position.y=-H/2-39;ground.receiveShadow=true;scene.add(ground);
+const bust=new THREE.Group();scene.add(bust);
+// ===== v2 procedural garment + mannequin =====
+
+const ss=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t)};
+// shirt half-width, depth, superellipse exponent by height (y=0 hem, y=H neckline)
+const halfW=y=>{const base=26.5+0.8*ss(0,40,y);if(y<58)return base;const s=(y-58)/(H-58);return 9+(base-9)*Math.sqrt(Math.max(0,1-s*s*s))};
+const depth=y=>{let d=12.5+2.3*ss(5,48,y);if(y>60){const s=(y-60)/(H-60);d=d-(d-8.5)*s*s}return d};
+const expo=y=>2.9-0.9*ss(58,H,y);
+const surfZ=(x,y,sign)=>{const w=halfW(y),d=depth(y),n=expo(y);const r=Math.min(Math.abs(x)/w,0.999);return sign*d*Math.pow(1-Math.pow(r,n),1/n)};
+function shellGeo(NY,NA,y0,y1,fw,fd,wrink){const pos=[],uv=[],idx=[];
+ for(let j=0;j<=NY;j++){const y=y0+(y1-y0)*j/NY;const w=fw(y),d=fd(y),n=expo(Math.max(0,y));
+  for(let i=0;i<=NA;i++){const th=i/NA*Math.PI*2;const s=Math.sin(th),c=Math.cos(th);
+   const k=Math.pow(Math.pow(Math.abs(s),n)+Math.pow(Math.abs(c),n),-1/n);let x=w*s*k,z=d*c*k;
+   if(wrink){const f=ss(46,8,y)*(0.5+0.5*Math.sin(th*9+Math.sin(y*0.21)*1.4))*0.5+ss(52,40,y)*ss(0.55,0.95,Math.abs(s))*0.35*(0.5+0.5*Math.sin(y*0.9+th*3));
+    const sc=1-f*0.022;x*=sc;z*=sc}
+   pos.push(x,y,z);uv.push(i/NA*6,y/H*4)}}
+ for(let j=0;j<NY;j++)for(let i=0;i<NA;i++){const a=j*(NA+1)+i,b=a+NA+1;idx.push(a,b,a+1,b,b+1,a+1)}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();return g}
+// fabric bump texture (jersey knit + noise)
+function knitTex(rib){const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');const im=x.createImageData(256,256);
+ for(let j=0;j<256;j++)for(let i=0;i<256;i++){let v=rib?128+90*Math.sin(i/256*Math.PI*2*24):128+40*Math.sin(i*Math.PI/2)*Math.sin(j*Math.PI/3);v+=(Math.random()-.5)*50;const p=(j*256+i)*4;im.data[p]=im.data[p+1]=im.data[p+2]=v;im.data[p+3]=255}
+ x.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t}
+const knit=knitTex(false);knit.repeat.set(30,30);const rib=knitTex(true);rib.repeat.set(4,1);
+const uBody={value:new THREE.Color('#f4f4f4')},uSleeve={value:sleeveColor};
+const shirtMat=new THREE.MeshStandardMaterial({roughness:.92,bumpMap:knit,bumpScale:.6,side:THREE.DoubleSide});
+shirtMat.onBeforeCompile=sh=>{sh.uniforms.uBody=uBody;sh.uniforms.uSleeve=uSleeve;
+ sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vP;').replace('#include <begin_vertex>','#include <begin_vertex>\nvP=position;');
+ sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vP;uniform vec3 uBody;uniform vec3 uSleeve;')
+ .replace('#include <color_fragment>',`#include <color_fragment>
+  float ax=abs(vP.x);float seam=(ax-8.0)*1.32-(74.0-vP.y);float aa=fwidth(seam)*1.2;
+  float k=smoothstep(-aa,aa,seam);vec3 col=mix(uBody,uSleeve,k);
+  float st=1.0-0.18*(1.0-smoothstep(0.0,0.25+aa,abs(seam+0.6)));
+  float hem=1.0-0.15*(1.0-smoothstep(0.0,0.2,abs(vP.y-2.6)));
+  diffuseColor.rgb=col*st*hem;`)};
+const torso=new THREE.Mesh(shellGeo(180,220,0,H,halfW,depth,true),shirtMat);bust.add(torso);
+function paintBody(){uBody.value.set(COLORS[bodyColor])}
+paintBody();
+const gray=new THREE.MeshPhysicalMaterial({color:"#3d4046",roughness:.28,metalness:.1,clearcoat:.6,clearcoatRoughness:.25});
+// mannequin lower torso peeking below hem (waist/hip)
+const lw=y=>23.5+1.2*ss(-12,4,-y),ld=y=>12;
+const lower=new THREE.Mesh(shellGeo(10,120,-9,2,lw,ld,false),gray);bust.add(lower);
+const bot=new THREE.Mesh(new THREE.CircleGeometry(1,64),gray);bot.scale.set(lw(-9),ld(-9)*0.98,1);bot.rotation.x=Math.PI/2;bot.position.y=-9;bust.add(bot);
+// sleeves (raglan, widening, hem band) + arm stubs
+const sm=new THREE.MeshStandardMaterial({color:sleeveColor,roughness:.92,bumpMap:knit,bumpScale:.6,side:THREE.DoubleSide});
+const ribM=new THREE.MeshStandardMaterial({color:sleeveColor,roughness:.9,bumpMap:rib,bumpScale:1.2,side:THREE.DoubleSide});
+const sleeveProf=[];for(let i=0;i<=20;i++){const t=i/20;sleeveProf.push(new THREE.Vector2(8.6+1.4*t+0.25*Math.sin(t*9),-t*19))}
+for(const s of[-1,1]){const g=new THREE.Group();g.position.set(s*21.5,62.5,0);const a=0.6;g.rotation.z=-s*(Math.PI-a)+s*Math.PI;g.rotation.z=s*a;
+ const sl=new THREE.Mesh(new THREE.LatheGeometry(sleeveProf,96),sm);sl.scale.z=0.9;g.add(sl);
+ const band=new THREE.Mesh(new THREE.CylinderGeometry(10.1,10.3,2.4,96,1,true),ribM);band.position.y=-19.8;band.scale.z=0.9;g.add(band);
+ const cap=new THREE.Mesh(new THREE.SphereGeometry(8.6,48,24,0,Math.PI*2,0,Math.PI/2),sm);cap.scale.set(1,.55,.9);g.add(cap);
+ const arm=new THREE.Mesh(new THREE.CylinderGeometry(5.9,5.1,26,48),gray);arm.position.y=-23;arm.scale.z=0.95;g.add(arm);
+ const ac=new THREE.Mesh(new THREE.CircleGeometry(5.1,48),gray);ac.rotation.x=Math.PI/2;ac.position.y=-36;g.add(ac);
+ // undo: point sleeve down-outward
+ g.rotation.z=s*(a); g.rotation.z=-s*0+ (s>0? a : -a); g.rotation.z = s>0 ? a : -a; bust.add(g);
+ g.rotation.z = s>0 ? a : -a;}
+// neck stub
+const neck=new THREE.Mesh(new THREE.CylinderGeometry(5.6,6.6,13,48),gray);neck.position.set(0,H+3.5,-0.6);neck.rotation.x=-0.12;bust.add(neck);
+const ntop=new THREE.Mesh(new THREE.CircleGeometry(5.6,48),gray);ntop.rotation.x=-Math.PI/2-0.12;ntop.position.set(0,H+10,-1.4);bust.add(ntop);
+const collarCurve=new THREE.CatmullRomCurve3(Array.from({length:64},(_,i)=>{const t=i/64*Math.PI*2;return new THREE.Vector3(8.9*Math.sin(t),-0.6*Math.cos(t),8.2*Math.cos(t))}),true);
+const collar=new THREE.Mesh(new THREE.TubeGeometry(collarCurve,128,1.25,16,true),ribM);collar.position.y=H-0.6;collar.scale.y=1.4;bust.add(collar);
+const base=new THREE.Mesh(new THREE.CylinderGeometry(2.5,2.5,30,24),gray);base.position.y=-24;bust.add(base);
+// print areas (v5: dashed light-blue, dark-blue labels)
+const AREAS=[
+ {id:'pe',nome:'Peito esquerdo',w:10,h:15,cx:11.5,cy:51,side:1,lab:'top'},
+ {id:'pd',nome:'Peito direito',w:10,h:15,cx:-11.5,cy:51,side:1,lab:'top'},
+ {id:'fr',nome:'Frente',w:25,h:30,cx:0,cy:26.5,side:1,lab:'mid'},
+ {id:'cs',nome:'Costas superior',w:30,h:40,cx:0,cy:44,side:-1,lab:'mid'},
+ {id:'bc',nome:'Barra costas (frase)',w:30,h:4,cx:0,cy:7,side:-1,lab:'mid'}];
+const pickables=[];const REST=.42;
+for(const a of AREAS){const g=new THREE.PlaneGeometry(a.w,a.h,24,24);const p=g.attributes.position;
+ for(let k=0;k<p.count;k++){const lx=p.getX(k),ly=p.getY(k);const x=a.cx+(a.side>0?lx:-lx),y=a.cy+ly;p.setXYZ(k,x,y,surfZ(x,y,a.side)+0.45*a.side)}g.computeVertexNormals();
+ const R=Math.min(1.4,a.h/2-0.3,a.w/2-0.3);const ac=document.createElement('canvas');const SC=20;ac.width=a.w*SC;ac.height=a.h*SC;const cx2=ac.getContext('2d');cx2.fillStyle='#000';cx2.fillRect(0,0,ac.width,ac.height);cx2.fillStyle='#fff';cx2.beginPath();cx2.roundRect(0,0,ac.width,ac.height,R*SC);cx2.fill();
+ const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({alphaMap:new THREE.CanvasTexture(ac),color:0xcfe6ff,transparent:true,opacity:REST,depthWrite:false,side:THREE.DoubleSide}));
+ const e=[];const edge=(u,v)=>{const x=a.cx+(a.side>0?u:-u),y=a.cy+v;e.push(new THREE.Vector3(x,y,surfZ(x,y,a.side)+0.55*a.side))};
+ {const hw=a.w/2,hh=a.h/2;const cs=[[hw-R,-hh+R,-Math.PI/2],[hw-R,hh-R,0],[-hw+R,hh-R,Math.PI/2],[-hw+R,-hh+R,Math.PI]];for(const[px,py,a0]of cs){for(let i=0;i<=12;i++){const t=a0+i/12*Math.PI/2;edge(px+R*Math.cos(t),py+R*Math.sin(t))}}
+  const n=e.length;for(let i=0;i<n;i++){} edge(hw-R,-hh)}
+ // densify straight edges for dashes following the surface
+ const dense=[];for(let i=0;i<e.length-1;i++){const A=e[i],B=e[i+1];const st=Math.max(1,Math.ceil(A.distanceTo(B)/0.5));for(let k=0;k<st;k++){const t=k/st;const x=A.x+(B.x-A.x)*t,y=A.y+(B.y-A.y)*t;dense.push(new THREE.Vector3(x,y,surfZ(x,y,a.side)+0.55*a.side))}}dense.push(e[e.length-1]);
+ const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(dense),new THREE.LineDashedMaterial({color:0x3fb2ff,dashSize:1.0,gapSize:0.6}));line.computeLineDistances();line.raycast=()=>{};
+ m.renderOrder=2;
+ {const lc=document.createElement('canvas');const LS=48;lc.width=a.w*LS;lc.height=a.h*LS;const L=lc.getContext('2d');const txt=a.w+' x '+a.h+' cm';
+  let fs=a.w<=12?lc.width*0.17:Math.min(lc.height*0.6,lc.width*0.1);L.font='700 '+fs+'px Nunito,system-ui,sans-serif';const tw=L.measureText(txt).width;if(tw>lc.width*0.92){fs*=lc.width*0.92/tw;L.font='700 '+fs+'px Nunito,system-ui,sans-serif'}
+  L.textAlign='center';L.textBaseline='middle';const ty=a.lab==='top'?fs*1.3:lc.height*(a.id==='fr'?0.42:0.5);
+  L.fillStyle='#1d3fa8';L.fillText(txt,lc.width/2,ty);
+  const lt=new THREE.CanvasTexture(lc);lt.colorSpace=THREE.SRGBColorSpace;lt.anisotropy=8;
+  const lm=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:lt,transparent:true,depthWrite:false,side:THREE.DoubleSide}));lm.renderOrder=3;lm.raycast=()=>{};a.label=lm;bust.add(lm)}
+ a.mesh=m;a.line=line;m.userData.area=a;bust.add(m,line);pickables.push(m);
+ a.center=new THREE.Vector3(a.cx,a.cy,surfZ(a.cx,a.cy,a.side));a.corner=new THREE.Vector3(a.cx+(a.side>0?1:-1)*a.w/2,a.cy+a.h/2,surfZ(a.cx+a.w/2,a.cy+a.h/2,a.side))}
+bust.position.y=-H/2;bust.traverse(o=>{if(o.isMesh&&!o.userData.area&&o!==ground){o.castShadow=true;o.receiveShadow=true}});
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.enablePan=false;controls.minDistance=40;controls.maxDistance=400;
+const HOME={pos:new THREE.Vector3(0,8,198),tgt:new THREE.Vector3(-3,6,0)};camera.position.copy(HOME.pos);controls.target.copy(HOME.tgt);
+let anim=null,active=null;
+function tween(toRot,toPos,toTgt,ms=900){const fr=bust.rotation.y,fp=camera.position.clone(),ft=controls.target.clone();const t0=performance.now();
+ let d=toRot-fr;d=Math.atan2(Math.sin(d),Math.cos(d));anim=now=>{let t=Math.min(1,(now-t0)/ms);t=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+ bust.rotation.y=fr+d*t;camera.position.lerpVectors(fp,toPos,t);controls.target.lerpVectors(ft,toTgt,t);if(t>=1)anim=null}}
+const restOp=o=>o.mesh.material.map?1:REST;
+function focus(a){active=a;controls.enabled=false;const rot=a.side>0?-Math.atan2(a.cx,30)*0.6:Math.PI;setView(a.side>0?0:1,false);
+ const w=a.center.clone();w.y-=H/2;w.applyAxisAngle(new THREE.Vector3(0,1,0),rot);
+ const dist=Math.max(a.w,a.h)*2.2+28;tween(rot,new THREE.Vector3(w.x,w.y,w.z+dist),w);
+ AREAS.forEach(o=>o.mesh.material.opacity=o===a?(o.mesh.material.map?1:.55):(o.mesh.material.map?1:.2))}
+const VIEWS=[{n:'Frente',r:0},{n:'Costas',r:Math.PI},{n:'Esquerda',r:-Math.PI/2},{n:'Direita',r:Math.PI/2}];let view=0;
+function setView(i,move=true){view=i;document.querySelectorAll('.tab').forEach((t,k)=>t.classList.toggle('sel',k===i));document.querySelectorAll('.thumb').forEach((t,k)=>t.classList.toggle('sel',k===i));
+ if(move){active=null;controls.enabled=true;AREAS.forEach(o=>o.mesh.material.opacity=restOp(o));tween(VIEWS[i].r,HOME.pos,HOME.tgt)}}
+window.__focus=id=>focus(AREAS.find(a=>a.id===id));window.__view=setView;
+const ray=new THREE.Raycaster(),mv=new THREE.Vector2();let down=null;
+renderer.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
+renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;const r=renderer.domElement.getBoundingClientRect();
+ mv.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(mv,camera);
+ const hits=ray.intersectObjects([torso,...pickables]);const h=hits.find(h=>h.object.userData.area);
+ if(h&&(hits[0].object===h.object||hits[0].distance>h.distance-1)){const cand=hits.filter(x=>x.object.userData.area&&x.distance<h.distance+1).map(x=>x.object.userData.area).sort((p,q)=>p.w*p.h-q.w*q.h);focus(cand[0])}
+ else if(active)setView(view)});
+// tabs + thumbs
+const ICON=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 3 3 6l2 4 2-1v12h10V9l2 1 2-4-5-3c-.5 1.5-2 2.5-4 2.5S8.5 4.5 8 3Z"/></svg>`;
+const ICONS=[ICON,ICON.replace('c-.5 1.5-2 2.5-4 2.5S8.5 4.5 8 3Z','c-1 .8-2.5 1-4 1S9 3.8 8 3Z'),`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M10 3c3 0 5 1 5 3l1 4-1 1v10H8V8l-1-2 3-3Z"/><path d="M15 6l-4 4"/></svg>`];ICONS[3]=ICONS[2].replace('<svg ','<svg style="transform:scaleX(-1)" ');
+const tabs=document.getElementById('tabs'),thumbs=document.getElementById('thumbs');const tcv=[];
+VIEWS.forEach((v,i)=>{const t=document.createElement('div');t.className='tab'+(i?'':' sel');t.innerHTML=ICONS[i]+v.n;t.onclick=()=>setView(i);tabs.append(t);
+ const c=document.createElement('div');c.className='thumb'+(i?'':' sel');const cv=document.createElement('canvas');cv.width=260;cv.height=230;tcv.push(cv);c.append(cv,v.n);c.onclick=()=>setView(i);thumbs.append(c)});
+const tr=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});tr.setSize(260,230);tr.shadowMap.enabled=true;tr.shadowMap.type=THREE.PCFSoftShadowMap;tr.toneMapping=THREE.ACESFilmicToneMapping;tr.outputColorSpace=THREE.SRGBColorSpace;
+{const pm2=new THREE.PMREMGenerator(tr);var env2=pm2.fromScene(new RoomEnvironment(),0.04).texture}
+const tcam=new THREE.PerspectiveCamera(30,260/230,1,2000);tcam.position.set(0,4,250);tcam.lookAt(0,4,0);
+let thumbsDirty=true;
+function renderThumbs(){const r0=bust.rotation.y,env=scene.environment;scene.environment=env2;const hid=[];AREAS.forEach(a=>{hid.push(a.mesh,a.line,a.label)});hid.forEach(o=>o.visible=false);
+ VIEWS.forEach((v,i)=>{bust.rotation.y=v.r;bust.updateMatrixWorld();tr.render(scene,tcam);const c=tcv[i].getContext('2d');c.clearRect(0,0,260,230);c.drawImage(tr.domElement,0,0)});
+ hid.forEach(o=>o.visible=true);AREAS.forEach(a=>a.label.visible=!a.mesh.material.map);bust.rotation.y=r0;scene.environment=env;thumbsDirty=false}
+// palettes
+function palette(el,get,set){for(const[n,h]of Object.entries(COLORS)){const s=document.createElement('div');s.className='sw'+(n===get()?' sel':'');s.innerHTML=`<div class="dot" style="background:${h}"></div>${n}`;
+ s.onclick=()=>{set(n);el.querySelectorAll('.sw').forEach(x=>x.classList.remove('sel'));s.classList.add('sel');thumbsDirty=true};el.append(s)}}
+palette(document.getElementById('palBody'),()=>bodyColor,n=>{bodyColor=n;paintBody()});
+function paintSleeve(){sleeveColor.set(COLORS[sleeveName]);sm.color.copy(sleeveColor);ribM.color.copy(sleeveColor)}paintSleeve();
+palette(document.getElementById('palSleeve'),()=>sleeveName,n=>{sleeveName=n;paintSleeve()});
+// upload
+const folder=document.getElementById('folder'),file=document.getElementById('file');folder.onclick=()=>file.click();
+file.onchange=()=>{const f=file.files[0];if(!f||!active)return;const img=new Image();img.onload=()=>{const a=active;const cv=document.createElement('canvas');const sc=20;cv.width=a.w*sc;cv.height=a.h*sc;
+ const ctx=cv.getContext('2d');const r=Math.min(cv.width/img.width,cv.height/img.height);const w=img.width*r,h=img.height*r;ctx.drawImage(img,(cv.width-w)/2,(cv.height-h)/2,w,h);
+ const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;
+ a.mesh.material.map=t;a.label.visible=false;a.mesh.material.color.set(0xffffff);a.mesh.material.opacity=1;a.mesh.material.needsUpdate=true;file.value=''};img.src=URL.createObjectURL(f)};
+function resize(){const w=viewer.clientWidth,h=viewer.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}addEventListener('resize',resize);resize();
+const v=new THREE.Vector3();
+renderer.setAnimationLoop(now=>{if(thumbsDirty)renderThumbs();if(anim)anim(now);controls.update();renderer.render(scene,camera);
+ if(active&&!anim){bust.updateMatrixWorld();v.copy(active.corner).applyMatrix4(bust.matrixWorld).project(camera);
+  folder.style.display='flex';folder.style.left=((v.x+1)/2*viewer.clientWidth+8)+'px';folder.style.top=((1-v.y)/2*viewer.clientHeight-46)+'px'}else folder.style.display='none'});
+// table
+const tb=document.getElementById('tb');const opt=(arr,sel)=>arr.map(x=>`<option${x===sel?' selected':''}>${x}</option>`).join('');
+const TRASH=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 11v6M14 11v6"/></svg>`;
+function renum(){tb.querySelectorAll('tr').forEach((r,i)=>r.firstChild.textContent=i+1)}
+function addRow(){const r=document.createElement('tr');
+ r.innerHTML=`<td class="n"></td><td><div class="step"><button>−</button><b>1</b><button>+</button></div></td><td><input class="inp"></td><td><input class="inp" placeholder="Nº"></td><td><select><option value="">Selecione</option>${opt(SIZES)}</select></td><td><div class="cor"><i style="background:${COLORS[bodyColor]}"></i><select>${opt(Object.keys(COLORS),bodyColor)}</select></div></td><td><button class="trash" title="Remover">${TRASH}</button></td>`;
+ const [m,p]=r.querySelectorAll('.step button'),q=r.querySelector('.step b');m.onclick=()=>q.textContent=Math.max(1,+q.textContent-1);p.onclick=()=>q.textContent=+q.textContent+1;
+ const cs=r.querySelector('.cor select');cs.onchange=()=>r.querySelector('.cor i').style.background=COLORS[cs.value];
+ r.querySelector('.trash').onclick=()=>{r.remove();renum()};tb.append(r);renum()}
+for(let i=0;i<20;i++)addRow();document.getElementById('add').onclick=()=>{for(let i=0;i<10;i++)addRow()};
+document.getElementById('csv').onclick=()=>{const q=s=>'"'+String(s).replace(/"/g,'""')+'"';const rows=[['Quantidade','Nome','Número','Tamanho','Cor']];
+ tb.querySelectorAll('tr').forEach(r=>{const [nome,num]=[...r.querySelectorAll('input')].map(e=>e.value.trim());const [tam,cor]=[...r.querySelectorAll('select')].map(e=>e.value);
+  if(!nome&&!num&&!tam)return;rows.push([r.querySelector('.step b').textContent,nome,num,tam,cor])});
+ const blob=new Blob(['\ufeff'+rows.map(r=>r.map(q).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pedido-camisas.csv';a.click()};
+</script></body></html>
