@@ -125,7 +125,7 @@ function render(){
  const crumbs=[{id:null,name:'Minhas pastas'},...path];
  crumbs.forEach((x,i)=>{if(i)head.append($(`<span class="crumb-sep">›</span>`));const b=$(`<button class="crumb${i===crumbs.length-1?' cur':''}">${esc(x.name)}</button>`);
   if(i<crumbs.length-1){b.onclick=()=>go(x.id);dropTarget(b,x.id)}head.append(b)});
- head.append($(`<span class="p-info">${c.folders} pasta${c.folders===1?'':'s'} · ${c.photos} foto${c.photos===1?'':'s'}${store.kind==='firebase'?' · sincronizado':' · salvo neste navegador'}</span>`));
+ head.append($(`<span class="p-info">${c.folders} pasta${c.folders===1?'':'s'} · ${c.photos} foto${c.photos===1?'':'s'}${store.kind==='firebase'?' · sincronizado':' · salvo neste navegador'}${matchMedia('(pointer:coarse)').matches?' · toque e segure para mover':''}</span>`));
  head.querySelector('.p-back')?.addEventListener('click',()=>go(path.length>1?path[path.length-2].id:null));
  root.append(head);
  const grid=$(`<div class="p-grid"></div>`);root.append(grid);
@@ -153,19 +153,37 @@ function render(){
  if(fid){const t=root.querySelector(`textarea[data-note="${fid}"]`);if(t){t.focus();t.setSelectionRange(...sel)}}}
 function dragSource(el,item){
  el.addEventListener('dragstart',ev=>{drag=item;ev.dataTransfer.effectAllowed='move';ev.dataTransfer.setData('text/plain',item.type+':'+item.id);el.classList.add('dragging');document.body.classList.add('dnd')});
- el.addEventListener('dragend',()=>{drag=null;el.classList.remove('dragging');document.body.classList.remove('dnd');document.querySelectorAll('.drop').forEach(x=>x.classList.remove('drop'));trash.classList.remove('hot')})}
+ el.addEventListener('dragend',()=>{drag=null;el.classList.remove('dragging');document.body.classList.remove('dnd');document.querySelectorAll('.drop').forEach(x=>x.classList.remove('drop'));trash.classList.remove('hot')});
+ touchDrag(el,item)}
 function canDrop(target){if(!drag)return false;if(drag.type==='folder')return target!==drag.id&&!(target&&store.isInside(drag.id,target))&&store.folder(drag.id)?.parentId!==target;return target!==null&&store.photo(drag.id)?.folderId!==target}
-function dropTarget(el,target){
- el.addEventListener('dragover',ev=>{if(canDrop(target)){ev.preventDefault();ev.dataTransfer.dropEffect='move';el.classList.add('drop')}});
- el.addEventListener('dragleave',ev=>{if(!el.contains(ev.relatedTarget))el.classList.remove('drop')});
- el.addEventListener('drop',async ev=>{el.classList.remove('drop');if(!canDrop(target))return;ev.preventDefault();ev.stopPropagation();const d=drag;drag=null;
-  try{if(d.type==='folder')await store.moveFolder(d.id,target);else await store.movePhoto(d.id,target);toast(`Movido para “${target?store.folder(target).name:'Minhas pastas'}”`)}catch(e){toast('Não foi possível mover')}})}
-trash.addEventListener('dragover',ev=>{if(drag){ev.preventDefault();ev.dataTransfer.dropEffect='move';trash.classList.add('hot')}});
-trash.addEventListener('dragleave',()=>trash.classList.remove('hot'));
-trash.addEventListener('drop',async ev=>{ev.preventDefault();trash.classList.remove('hot');const d=drag;drag=null;if(!d)return;
+async function doMove(d,target){try{if(d.type==='folder')await store.moveFolder(d.id,target);else await store.movePhoto(d.id,target);toast(`Movido para “${target?store.folder(target).name:'Minhas pastas'}”`)}catch(e){toast('Não foi possível mover')}}
+async function doTrash(d){
  if(d.type==='folder'){const f=store.folder(d.id);const n=store.descendants(d.id).length,ph=[d.id,...store.descendants(d.id)].reduce((s,i)=>s+store.photos(i).length,0);
   if(await modal({title:'Excluir pasta?',text:`“${f.name}”${n||ph?` e todo o conteúdo (${n} subpasta${n===1?'':'s'}, ${ph} foto${ph===1?'':'s'})`:''} será excluída. Esta ação não pode ser desfeita.`,ok:'Excluir',danger:true}))await store.deleteFolder(d.id)}
- else if(await modal({title:'Excluir foto?',text:'A foto e suas anotações serão excluídas. Esta ação não pode ser desfeita.',ok:'Excluir',danger:true}))await store.deletePhoto(d.id)});
+ else if(await modal({title:'Excluir foto?',text:'A foto e suas anotações serão excluídas. Esta ação não pode ser desfeita.',ok:'Excluir',danger:true}))await store.deletePhoto(d.id)}
+function dropTarget(el,target){el.dataset.drop=target??'__root';
+ el.addEventListener('dragover',ev=>{if(canDrop(target)){ev.preventDefault();ev.dataTransfer.dropEffect='move';el.classList.add('drop')}});
+ el.addEventListener('dragleave',ev=>{if(!el.contains(ev.relatedTarget))el.classList.remove('drop')});
+ el.addEventListener('drop',async ev=>{el.classList.remove('drop');if(!canDrop(target))return;ev.preventDefault();ev.stopPropagation();const d=drag;drag=null;doMove(d,target)})}
+trash.addEventListener('dragover',ev=>{if(drag){ev.preventDefault();ev.dataTransfer.dropEffect='move';trash.classList.add('hot')}});
+trash.addEventListener('dragleave',()=>trash.classList.remove('hot'));
+trash.addEventListener('drop',async ev=>{ev.preventDefault();trash.classList.remove('hot');const d=drag;drag=null;if(d)doTrash(d)});
+// ---------- touch: long-press (450 ms) to drag, drop on folder / breadcrumb / trash ----------
+let tdrag=null;
+function touchDrag(el,item){
+ el.addEventListener('contextmenu',e=>{if(tdrag||e.pointerType==='touch'||matchMedia('(pointer:coarse)').matches)e.preventDefault()});
+ el.addEventListener('touchstart',ev=>{if(ev.touches.length!==1||ev.target.closest('textarea,.plus'))return;const t=ev.touches[0];const st={x:t.clientX,y:t.clientY};
+  const timer=setTimeout(()=>{const r=el.getBoundingClientRect();const g=el.cloneNode(true);g.className+=' ghost';Object.assign(g.style,{position:'fixed',left:r.left+'px',top:r.top+'px',width:r.width+'px',pointerEvents:'none',zIndex:200,opacity:.85,transform:'scale(1.06)'});
+   document.body.append(g);tdrag={el,item,g,dx:st.x-r.left,dy:st.y-r.top,over:null};drag=item;el.classList.add('dragging');document.body.classList.add('dnd');navigator.vibrate?.(15)},450);
+  const cancel=()=>{clearTimeout(timer);el.removeEventListener('touchmove',mv);el.removeEventListener('touchend',cancel)};
+  const mv=e=>{const q=e.touches[0];if(!tdrag&&Math.hypot(q.clientX-st.x,q.clientY-st.y)>10)cancel()};
+  el.addEventListener('touchmove',mv,{passive:true});el.addEventListener('touchend',cancel)},{passive:true})}
+document.addEventListener('touchmove',e=>{if(!tdrag)return;e.preventDefault();const q=e.touches[0];tdrag.g.style.left=(q.clientX-tdrag.dx)+'px';tdrag.g.style.top=(q.clientY-tdrag.dy)+'px';
+ const hit=document.elementFromPoint(q.clientX,q.clientY);const tgt=hit?.closest('#trash,[data-drop]');document.querySelectorAll('.drop').forEach(x=>x.classList.remove('drop'));trash.classList.remove('hot');tdrag.over=null;
+ if(tgt===trash){trash.classList.add('hot');tdrag.over='trash'}else if(tgt&&tgt!==tdrag.el){const id=tgt.dataset.drop==='__root'?null:tgt.dataset.drop;if(canDrop(id)){tgt.classList.add('drop');tdrag.over={id}}}},{passive:false});
+const endT=e=>{if(!tdrag)return;e.preventDefault();const t=tdrag;tdrag=null;drag=null;t.g.remove();t.el.classList.remove('dragging');document.body.classList.remove('dnd');document.querySelectorAll('.drop').forEach(x=>x.classList.remove('drop'));trash.classList.remove('hot');
+ if(t.over==='trash')doTrash(t.item);else if(t.over)doMove(t.item,t.over.id)};
+document.addEventListener('touchend',endT,{passive:false});document.addEventListener('touchcancel',endT,{passive:false});
 async function newFolder(){const name=await modal({title:'Nova pasta',input:true});if(name)await store.createFolder(name,cur)}
 const fileIn=$(`<input type="file" accept="image/*" multiple hidden>`);document.body.append(fileIn);fileIn.onchange=()=>{upload(fileIn.files);fileIn.value=''};
 async function upload(files){const list=[...files].filter(f=>f.type.startsWith('image/'));if(!list.length)return toast('Selecione arquivos de imagem');const target=cur;let ok=0;
