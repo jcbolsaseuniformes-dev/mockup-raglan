@@ -77,3 +77,31 @@ body.dnd #trash{color:#cfd6e0;border-color:rgba(255,255,255,.25)}
 .lb .cap{max-width:70vw;color:#cfd6e0;font-size:13px;white-space:pre-wrap;text-align:center}
 .lb .x{position:absolute;top:18px;right:22px;width:38px;height:38px;border-radius:50%;cursor:pointer;color:#fff;font-size:20px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2)}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);padding:9px 16px;border-radius:10px;font-size:13px;z-index:120;color:#e8edf5}
+
+/* ===== Pastas em telas pequenas ===== */
+.ghost{border-radius:14px;background:rgba(20,26,38,.7);box-shadow:0 12px 30px rgba(0,0,0,.6)}
+.tile,.ph{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+@media (max-width:900px){
+ .topbar{padding:0 10px;gap:6px;height:54px}
+ .topbar .brand{font-size:13px;margin-right:4px}
+ .ttab{padding:9px 14px;min-height:40px}
+ #pastas{height:auto;min-height:calc(100vh - 54px);overflow:visible}
+ .p-head{padding:10px 14px 0;flex-wrap:wrap;row-gap:4px}
+ .p-info{width:100%;margin-left:0;order:9}
+ .crumb{min-height:36px}
+ .p-back{width:38px;height:38px}
+ .p-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:18px 10px;padding:14px 14px 96px;justify-items:center}
+ .tile,.new-wrap,.ph{width:104px}
+ .folder-ic{width:86px;height:70px}
+ .new-tile{width:94px;height:81px;margin:6px 5px 0}
+ .up-tile{width:94px;height:94px}
+ .ph .frame{width:98px;height:98px}
+ .ph .plus{top:93px;width:32px;height:32px;font-size:20px}
+ .ph .note{width:104px}
+ .ph textarea{font-size:16px}
+ .modal{width:min(340px,calc(100vw - 32px))}
+ .modal input{font-size:16px;height:44px}
+ .m-btn{height:42px}
+ #trash{width:52px;height:52px;left:14px;bottom:calc(16px + env(safe-area-inset-bottom))}
+ .lb img{max-width:94vw;max-height:72vh}
+}
