@@ -3,6 +3,18 @@
 <link rel="icon" href="data:,"><title>Camisa Raglan – Pedido</title>
 <!-- v6: modelo 3D fornecido pela cliente (Tripo3D), otimizado com gltf-transform -->
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<script>
+/* ===== Configuração das Pastas =====
+   Para sincronizar com Firebase (somente Firestore, tempo real; funciona no plano gratuito Spark, sem Cloud Storage), cole aqui o firebaseConfig do seu projeto:
+   firebase:{apiKey:"...",authDomain:"...",projectId:"...",storageBucket:"...",messagingSenderId:"...",appId:"..."}
+   Sem configuração, as pastas e fotos ficam salvas localmente neste navegador (IndexedDB). */
+window.PASTAS_CONFIG={
+  firebase:{apiKey:"AIzaSyCpdVs0PW0t-u4fwlGQzFSbMTIyz018iBQ",authDomain:"mockup-raglan.firebaseapp.com",projectId:"mockup-raglan",storageBucket:"mockup-raglan.firebasestorage.app",messagingSenderId:"848983570548",appId:"1:848983570548:web:380cc7cab673c120fbf921"},
+  firebaseOptions:{anonymousAuth:false,prefix:'',sdkVersion:'10.12.2'},
+  maxImageSize:1600,jpegQuality:0.85
+};
+</script>
+<link rel="stylesheet" href="pastas.css">
 <style>
 *{box-sizing:border-box}html,body{height:100%}
 body{margin:0;font-family:Nunito,Inter,system-ui,sans-serif;color:#e8edf5;overflow:hidden;
@@ -67,6 +79,11 @@ background:linear-gradient(180deg,#2b8bff,#1462e0);box-shadow:0 0 26px rgba(30,1
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.7.3/build/index.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 </head><body>
+<nav class="topbar"><span class="brand">Camisa Raglan</span><div class="ttabs glass">
+ <button class="ttab sel" data-tab="mockup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 3 3 6l2 4 2-1v12h10V9l2 1 2-4-5-3c-.5 1.5-2 2.5-4 2.5S8.5 4.5 8 3Z"/></svg>Mockup</button>
+ <button class="ttab" data-tab="pastas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>Pastas</button></div></nav>
+<section id="pastas"></section>
+<div id="trash" title="Arraste aqui para excluir"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 11v6M14 11v6"/></svg></div>
 <div class="app">
  <div class="left">
   <div id="viewer">
@@ -231,7 +248,7 @@ file.onchange=()=>{const f=file.files[0];if(!f||!active)return;const img=new Ima
  a.mesh.material.map=t;a.label.visible=false;a.mesh.material.color.set(0xffffff);a.mesh.material.opacity=1;a.mesh.material.needsUpdate=true;file.value=''};img.src=URL.createObjectURL(f)};
 function resize(){const w=viewer.clientWidth,h=viewer.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}addEventListener('resize',resize);resize();
 const v=new THREE.Vector3();
-renderer.setAnimationLoop(now=>{if(thumbsDirty)renderThumbs();if(anim)anim(now);controls.update();renderer.render(scene,camera);
+renderer.setAnimationLoop(now=>{if(document.body.classList.contains('pastas-on')||document.hidden)return;if(thumbsDirty)renderThumbs();if(anim)anim(now);controls.update();renderer.render(scene,camera);
  if(active&&!anim){bust.updateMatrixWorld();v.copy(active.corner).applyMatrix4(bust.matrixWorld).project(camera);
   folder.style.display='flex';folder.style.left=((v.x+1)/2*viewer.clientWidth+8)+'px';folder.style.top=((1-v.y)/2*viewer.clientHeight-46)+'px'}else folder.style.display='none'});
 // table
@@ -268,4 +285,5 @@ document.getElementById('csv').onclick=async()=>{const btn=document.getElementBy
   const blob=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=base+'.zip';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
  catch(e){console.error(e);alert('Não foi possível gerar o pedido. Tente novamente.')}
  finally{btn.disabled=false;txt.textContent='Salvar pedido'}};
-</script></body></html>
+</script>
+<script type="module" src="pastas.js"></script></body></html>
