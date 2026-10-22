@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b0b0d">
 <link rel="icon" href="data:,"><title>Camisa Raglan – Pedido</title>
 <!-- v6: modelo 3D fornecido pela cliente (Tripo3D), otimizado com gltf-transform -->
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
@@ -25,12 +25,6 @@ body:after{content:"";position:fixed;inset:auto 0 0 0;height:260px;pointer-event
 border:1px solid rgba(160,190,230,.16);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)}
 .left{position:relative;display:flex;flex-direction:column;gap:14px;min-height:0}
 #viewer{position:relative;flex:1;min-height:0}#viewer canvas{display:block;width:100%;height:100%;outline:none}
-.tabs{position:absolute;left:0;top:34px;padding:7px;display:flex;flex-direction:column;gap:8px;z-index:3}
-.tab{width:60px;height:62px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;cursor:pointer;color:#dfe6f0;
-background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)}
-.tab:hover{background:rgba(255,255,255,.08)}
-.tab.sel{background:linear-gradient(180deg,#2f8cff,#1767e6);border-color:#5aa6ff;box-shadow:0 0 16px rgba(40,130,255,.55);color:#fff}
-.tab svg{width:26px;height:26px}
 .tools{position:absolute;right:4px;top:18px;display:flex;flex-direction:column;gap:14px;z-index:3}
 .tool{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11.5px;color:#cfd6e0;cursor:pointer;width:64px}
 .circ{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
@@ -44,14 +38,16 @@ background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.12),rgba(20,26,38
 .thumb canvas{flex:1;min-height:0;width:100%;object-fit:contain}
 .thumb.sel{border:2px solid #2f8cff;box-shadow:0 0 18px rgba(40,130,255,.6),inset 0 0 14px rgba(40,130,255,.25)}
 .right{display:flex;flex-direction:column;gap:10px;min-height:0}
-.cpanel{padding:11px 14px 8px}
-.cpanel h2{margin:0 0 6px;font-size:14.5px;font-weight:700;color:#f2f5fa}
-.grid{display:grid;grid-template-columns:repeat(6,1fr);row-gap:4px}
-.sw{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11.5px;color:#d6dce6;cursor:pointer;white-space:nowrap}
-.dot{width:40px;height:40px;border-radius:50%;position:relative;box-shadow:0 3px 8px rgba(0,0,0,.55),inset 0 -3px 6px rgba(0,0,0,.35);border:1.5px solid rgba(255,255,255,.18);transition:transform .15s}
-.dot:after{content:"";position:absolute;inset:3px 7px 50% 7px;border-radius:50%;background:linear-gradient(rgba(255,255,255,.5),rgba(255,255,255,0))}
-.sw:hover .dot{transform:scale(1.07)}
-.sw.sel .dot{outline:2px solid #3b95ff;outline-offset:3px;box-shadow:0 0 14px rgba(60,150,255,.7)}
+.cpanel{padding:8px 14px 14px}
+.ctabs{display:flex;gap:6px;padding:4px;margin:0 0 12px;border-radius:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}
+.ctab{flex:1;height:32px;border:0;border-radius:8px;background:transparent;color:#cfd6e0;font:600 13.5px Nunito,sans-serif;cursor:pointer;transition:background .15s}
+.ctab:hover{background:rgba(255,255,255,.06)}
+.ctab.sel{background:linear-gradient(180deg,#2f8cff,#1767e6);color:#fff;box-shadow:0 0 14px rgba(40,130,255,.45)}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);row-gap:14px;justify-items:center;padding:2px 10px}
+.sw{width:40px;height:40px;border-radius:50%;cursor:pointer;border:1px solid rgba(255,255,255,.16);transition:transform .15s,box-shadow .15s}
+.sw.light{border-color:#cfcfcf}
+.sw:hover{transform:scale(1.08)}
+.sw.sel{box-shadow:0 0 0 3px #12161f,0 0 0 5px #3b95ff,0 0 14px rgba(60,150,255,.6)}
 .tpanel{flex:1;min-height:0;display:flex;flex-direction:column;padding:4px 6px 6px}
 .tscroll{overflow:auto;flex:1;min-height:0}
 .tscroll::-webkit-scrollbar{width:6px}.tscroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
@@ -65,9 +61,6 @@ select{appearance:none;-webkit-appearance:none;padding-right:18px;background-ima
 option{background:#141a26;color:#fff}
 .step{display:flex;align-items:center;gap:3px}.step b{font-weight:600;width:16px;text-align:center}
 .step button{width:20px;height:20px;border-radius:5px;border:1px solid rgba(255,255,255,.08);background:rgba(40,50,68,.8);color:#fff;cursor:pointer;line-height:1;padding:0;font-size:13px}
-.cor{display:flex;align-items:center;gap:7px}.cor i{width:17px;height:17px;border-radius:50%;flex:none;box-shadow:inset 0 -2px 3px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.15)}
-.cor select{background-color:transparent;border-color:transparent}
-.cor select:hover{border-color:rgba(255,255,255,.1)}
 .trash{background:none;border:0;cursor:pointer;color:#dfe6f0;padding:2px;border-left:1px solid rgba(255,255,255,.08);padding-left:10px}
 .trash:hover{color:#ff6b6b}
 .add{margin:6px 4px 0;align-self:flex-start;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#cfd6e0;border-radius:8px;padding:5px 12px;cursor:pointer;font:inherit;font-size:12px}
@@ -76,6 +69,44 @@ option{background:#141a26;color:#fff}
 #csv{display:flex;align-items:center;gap:14px;justify-content:center;width:270px;height:52px;border-radius:10px;border:1px solid #4aa0ff;cursor:pointer;color:#fff;font:600 15px Nunito,sans-serif;
 background:linear-gradient(180deg,#2b8bff,#1462e0);box-shadow:0 0 26px rgba(30,120,255,.55),inset 0 1px 0 rgba(255,255,255,.25)}
 #csv:hover{filter:brightness(1.1)}#csv:disabled{opacity:.7;cursor:progress}
+
+/* ===== Smartphones / telas estreitas ===== */
+@media (max-width:900px){
+ html,body{height:auto}
+ body{overflow-x:hidden;overflow-y:auto}
+ .app{display:flex!important;flex-direction:column;height:auto!important;gap:12px;padding:6px 10px calc(84px + env(safe-area-inset-bottom))!important}
+ .left{gap:8px}
+ #viewer{flex:none;height:58vh;min-height:320px;border-radius:14px;touch-action:none}
+ .thumbs{display:flex;overflow-x:auto;overflow-y:hidden;height:118px;gap:8px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+ .thumb{flex:0 0 116px;scroll-snap-align:start;min-height:44px}
+ .right{gap:12px}
+ .cpanel{padding:8px 10px 14px}
+ .ctab{height:42px;font-size:15px}
+ .grid{row-gap:14px;padding:2px 0}
+ .sw{width:44px;height:44px}
+ .tpanel{flex:none}
+ .tscroll{overflow:visible;max-height:none}
+ table,tbody{display:block;font-size:14px}
+ thead{display:none}
+ #tb tr{display:grid;grid-template-columns:26px 1fr 1fr 44px;gap:6px 8px;align-items:center;padding:10px 4px;border-bottom:1px solid rgba(255,255,255,.07)}
+ #tb td{height:auto;padding:0;border:0;min-width:0}
+ #tb td:nth-child(1){grid-row:1/4;align-self:start;padding-top:12px}
+ #tb td:nth-child(2){grid-column:2/4;grid-row:1}
+ #tb td:nth-child(6){grid-column:4;grid-row:1;justify-self:end}
+ #tb td:nth-child(3){grid-column:2/5;grid-row:2}
+ #tb td:nth-child(4){grid-column:2;grid-row:3}
+ #tb td:nth-child(5){grid-column:3/5;grid-row:3}
+ #tb .trash{border-left:0;padding:0}
+ .inp,select{height:40px;font-size:16px}
+ .step{gap:4px}.step button{width:40px;height:40px;font-size:18px;border-radius:9px}
+ .trash{width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+ .add{min-height:42px;font-size:14px}
+ .bottom{position:fixed;left:0;right:0;bottom:0;padding:10px 12px calc(10px + env(safe-area-inset-bottom));z-index:15;
+  background:linear-gradient(180deg,rgba(11,11,13,0),rgba(11,11,13,.92) 35%);justify-content:stretch}
+ #csv{width:100%;height:54px}
+ body.pastas-on .bottom{display:none}
+ #folder{width:46px;height:46px}
+}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.7.3/build/index.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 </head><body>
@@ -87,25 +118,28 @@ background:linear-gradient(180deg,#2b8bff,#1462e0);box-shadow:0 0 26px rgba(30,1
 <div class="app">
  <div class="left">
   <div id="viewer">
-   <div class="tabs glass" id="tabs"></div><div id="loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9fb3cc;font-size:14px;z-index:2">Carregando modelo…</div>
+   <div id="loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9fb3cc;font-size:14px;z-index:2">Carregando modelo…</div>
    <div class="circ" id="folder" title="Enviar imagem"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b8bff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6"/><path d="m9 13 3-3 3 3"/></svg></div>
    <input type="file" id="file" accept="image/*" hidden>
   </div>
   <div class="thumbs glass" id="thumbs"></div>
  </div>
  <div class="right">
-  <div class="cpanel glass"><h2>Escolha a cor da camisa</h2><div class="grid" id="palBody"></div></div>
-  <div class="cpanel glass"><h2>Escolha a cor da manga</h2><div class="grid" id="palSleeve"></div></div>
-  <div class="tpanel glass"><div class="tscroll"><table><thead><tr><th></th><th style="width:78px">Quantidade</th><th>Nome</th><th style="width:62px">Número</th><th style="width:92px">Tamanho</th><th style="width:140px">Cor</th><th style="width:44px">Ações</th></tr></thead><tbody id="tb"></tbody></table></div>
+  <div class="cpanel glass"><div class="ctabs" role="tablist"><button class="ctab sel" data-part="corpo" role="tab">Corpo</button><button class="ctab" data-part="manga" role="tab">Manga</button></div><div class="grid" id="pal"></div></div>
+  <div class="tpanel glass"><div class="tscroll"><table><thead><tr><th></th><th style="width:78px">Quantidade</th><th>Nome</th><th style="width:62px">Número</th><th style="width:92px">Tamanho</th><th style="width:44px">Ações</th></tr></thead><tbody id="tb"></tbody></table></div>
    <button class="add" id="add">+ Adicionar 10 linhas</button></div>
   <div class="bottom"><button id="csv"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v3h16v-3"/></svg><span id="csvTxt">Salvar pedido</span></button></div>
  </div>
 </div>
 <script type="module">
 import * as THREE from 'three';import {OrbitControls} from 'three/addons/controls/OrbitControls.js';import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';import {computeBoundsTree,acceleratedRaycast} from 'three-mesh-bvh';
-const COLORS={'Preto':'#0e0e10','Branco':'#f5f5f5','Azul Marinho':'#14295a','Verde Bandeira':'#0f7a2e','Amarelo':'#f7c600','Azul Claro':'#4aa3f5','Vermelho':'#e0101e','Roxo':'#6a1fd8','Marrom':'#5a2e1a','Beje':'#e2c4a4','Cinza Claro':'#b9bcc2','Cinza Escuro':'#3f4248'};
+const COLORS={'Verde Petróleo':'#5a96a1','Azul Piscina':'#a0e3eb','Azul Royal':'#365ca5','Azul Marinho':'#213b86','Azul Claro':'#79a5e4',
+ 'Roxo':'#4c297d','Magenta':'#8e0576','Rosa Claro':'#edb6d3','Lilás':'#d17af6','Vermelho':'#c3011f',
+ 'Vermelho Tomate':'#c83837','Laranja':'#d3721b','Mostarda':'#dfa927','Amarelo':'#fbeb38','Verde Limão':'#8fb637',
+ 'Verde Bandeira':'#548e51','Marrom':'#5e4234','Preto':'#000000','Cinza Claro':'#d0cec2','Branco':'#ffffff'};
+const RENDER={'Preto':'#151515','Branco':'#f7f7f7'};const tint=n=>RENDER[n]||COLORS[n];
 const SIZES=['PP','P','M','G','GG','XG1','XG2'];
-const H=75;let bodyColor='Branco',sleeveName='Preto';const sleeveColor=new THREE.Color(COLORS['Preto']);
+const H=75;let bodyColor='Branco',sleeveName='Preto';const sleeveColor=new THREE.Color(tint('Preto'));
 const viewer=document.getElementById('viewer');
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(2,devicePixelRatio));viewer.prepend(renderer.domElement);
 const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(30,1,1,2000);
@@ -137,18 +171,19 @@ const SCALE=H/(tbx.y1-tbx.y0);
 sg.translate(-(tbx.x0+tbx.x1)/2,-tbx.y0,0);sg.scale(SCALE,SCALE,SCALE);sg.computeBoundingBox();const gb=sg.boundingBox;sg.translate(0,0,-(gb.min.z+gb.max.z)/2);sg.computeBoundingBox();sg.computeBoundsTree();
 const MODEL_MIN_Y=sg.boundingBox.min.y;
 const mat=shirtMesh.material;mat.side=THREE.DoubleSide;
-const uBody={value:new THREE.Color(COLORS['Branco'])},uSleeve={value:sleeveColor};
+const uBody={value:new THREE.Color(tint('Branco'))},uSleeve={value:sleeveColor};
 mat.onBeforeCompile=sh=>{sh.uniforms.uBody=uBody;sh.uniforms.uSleeve=uSleeve;sh.uniforms.uMask={value:maskTex};
  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 uBody;uniform vec3 uSleeve;uniform sampler2D uMask;')
  .replace('#include <map_fragment>',`#include <map_fragment>
   vec4 mk=texture2D(uMask,vMapUv);float L=dot(diffuseColor.rgb,vec3(.3333));
-  vec3 bodyC=uBody*clamp(L/0.80,0.0,1.12);
-  float sd=clamp(0.82+(sqrt(L)-0.12)*2.6,0.45,1.25);vec3 slC=uSleeve*sd;
+  float sB=clamp((max(max(uBody.r,uBody.g),uBody.b)-min(min(uBody.r,uBody.g),uBody.b))*1.8,0.0,1.0);
+  vec3 bodyC=uBody*clamp(L/0.80,0.0,1.12)*mix(1.0,0.82,sB);
+  float sd=clamp(0.82+(sqrt(L)-0.12)*2.6,0.45,1.25);float sS=clamp((max(max(uSleeve.r,uSleeve.g),uSleeve.b)-min(min(uSleeve.r,uSleeve.g),uSleeve.b))*1.8,0.0,1.0);vec3 slC=uSleeve*sd*mix(1.0,0.85,sS);
   vec3 shirtC=mix(bodyC,slC,mk.r);
   diffuseColor.rgb=mix(shirtC,diffuseColor.rgb*0.85,mk.g);`)};
 mat.customProgramCacheKey=()=>'v6shirt';
 bust.add(shirtMesh);bust.updateMatrixWorld(true);
-function paintBody(){uBody.value.set(COLORS[bodyColor])}paintBody();
+function paintBody(){uBody.value.set(tint(bodyColor))}paintBody();
 const sm={color:new THREE.Color()},ribM={color:new THREE.Color()};
 const torso=shirtMesh;
 ground.position.y=MODEL_MIN_Y-H/2-0.2;
@@ -211,7 +246,7 @@ function focus(a){active=a;controls.enabled=false;const rot=a.sleeve?Math.atan2(
  const dist=Math.max(a.w,a.h)*2.2+28;tween(rot,w.clone().addScaledVector(n,dist),w);
  AREAS.forEach(o=>o.mesh.material.opacity=o===a?(o.mesh.material.map?1:.55):(o.mesh.material.map?1:.2))}
 const VIEWS=[{n:'Frente',r:0},{n:'Costas',r:Math.PI},{n:'Esquerda',r:-Math.PI/2},{n:'Direita',r:Math.PI/2}];let view=0;
-function setView(i,move=true){view=i;document.querySelectorAll('.tab').forEach((t,k)=>t.classList.toggle('sel',k===i));document.querySelectorAll('.thumb').forEach((t,k)=>t.classList.toggle('sel',k===i));
+function setView(i,move=true){view=i;document.querySelectorAll('.thumb').forEach((t,k)=>t.classList.toggle('sel',k===i));
  if(move){active=null;controls.enabled=true;AREAS.forEach(o=>o.mesh.material.opacity=restOp(o));tween(VIEWS[i].r,HOME.pos,HOME.tgt)}}
 window.__focus=id=>focus(AREAS.find(a=>a.id===id));window.__view=setView;
 const ray=new THREE.Raycaster(),mv=new THREE.Vector2();let down=null;
@@ -224,9 +259,8 @@ renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clie
 // tabs + thumbs
 const ICON=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 3 3 6l2 4 2-1v12h10V9l2 1 2-4-5-3c-.5 1.5-2 2.5-4 2.5S8.5 4.5 8 3Z"/></svg>`;
 const ICONS=[ICON,ICON.replace('c-.5 1.5-2 2.5-4 2.5S8.5 4.5 8 3Z','c-1 .8-2.5 1-4 1S9 3.8 8 3Z'),`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M10 3c3 0 5 1 5 3l1 4-1 1v10H8V8l-1-2 3-3Z"/><path d="M15 6l-4 4"/></svg>`];ICONS[3]=ICONS[2].replace('<svg ','<svg style="transform:scaleX(-1)" ');
-const tabs=document.getElementById('tabs'),thumbs=document.getElementById('thumbs');const tcv=[];
-VIEWS.forEach((v,i)=>{const t=document.createElement('div');t.className='tab'+(i?'':' sel');t.innerHTML=ICONS[i]+v.n;t.onclick=()=>setView(i);tabs.append(t);
- const c=document.createElement('div');c.className='thumb'+(i?'':' sel');const cv=document.createElement('canvas');cv.width=260;cv.height=230;tcv.push(cv);c.append(cv,v.n);c.onclick=()=>setView(i);thumbs.append(c)});
+const thumbs=document.getElementById('thumbs');const tcv=[];
+VIEWS.forEach((v,i)=>{ const c=document.createElement('div');c.className='thumb'+(i?'':' sel');const cv=document.createElement('canvas');cv.width=260;cv.height=230;tcv.push(cv);c.append(cv,v.n);c.onclick=()=>setView(i);thumbs.append(c)});
 const tr=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});tr.setSize(260,230);tr.shadowMap.enabled=true;tr.shadowMap.type=THREE.PCFSoftShadowMap;tr.toneMapping=THREE.ACESFilmicToneMapping;tr.outputColorSpace=THREE.SRGBColorSpace;
 {const pm2=new THREE.PMREMGenerator(tr);var env2=pm2.fromScene(new RoomEnvironment(),0.04).texture}
 const tcam=new THREE.PerspectiveCamera(30,260/230,1,2000);tcam.position.set(0,4,250);tcam.lookAt(0,4,0);
@@ -235,18 +269,20 @@ function renderThumbs(){const r0=bust.rotation.y,env=scene.environment;scene.env
  VIEWS.forEach((v,i)=>{bust.rotation.y=v.r;bust.updateMatrixWorld();tr.render(scene,tcam);const c=tcv[i].getContext('2d');c.clearRect(0,0,260,230);c.drawImage(tr.domElement,0,0)});
  hid.forEach(o=>o.visible=true);AREAS.forEach(a=>a.label.visible=!a.mesh.material.map);bust.rotation.y=r0;scene.environment=env;thumbsDirty=false}
 // palettes
-function palette(el,get,set){for(const[n,h]of Object.entries(COLORS)){const s=document.createElement('div');s.className='sw'+(n===get()?' sel':'');s.innerHTML=`<div class="dot" style="background:${h}"></div>${n}`;
- s.onclick=()=>{set(n);el.querySelectorAll('.sw').forEach(x=>x.classList.remove('sel'));s.classList.add('sel');thumbsDirty=true};el.append(s)}}
-palette(document.getElementById('palBody'),()=>bodyColor,n=>{bodyColor=n;paintBody()});
-function paintSleeve(){sleeveColor.set(COLORS[sleeveName])}paintSleeve();
-palette(document.getElementById('palSleeve'),()=>sleeveName,n=>{sleeveName=n;paintSleeve()});
+function paintSleeve(){sleeveColor.set(tint(sleeveName))}paintSleeve();
+let part='corpo';const pal=document.getElementById('pal');
+const isLight=h=>{const c=parseInt(h.slice(1),16);return(0.299*(c>>16)+0.587*(c>>8&255)+0.114*(c&255))>200};
+for(const[n,h]of Object.entries(COLORS)){const s=document.createElement('div');s.className='sw'+(isLight(h)?' light':'');s.style.background=h;s.title=n;s.dataset.name=n;s.setAttribute('aria-label',n);
+ s.onclick=()=>{if(part==='corpo'){bodyColor=n;paintBody()}else{sleeveName=n;paintSleeve()}markSel();thumbsDirty=true};pal.append(s)}
+function markSel(){const cur=part==='corpo'?bodyColor:sleeveName;pal.querySelectorAll('.sw').forEach(x=>x.classList.toggle('sel',x.dataset.name===cur))}
+document.querySelectorAll('.ctab').forEach(t=>t.onclick=()=>{part=t.dataset.part;document.querySelectorAll('.ctab').forEach(x=>x.classList.toggle('sel',x===t));markSel()});markSel();
 // upload
 const folder=document.getElementById('folder'),file=document.getElementById('file');folder.onclick=()=>file.click();
 file.onchange=()=>{const f=file.files[0];if(!f||!active)return;const img=new Image();img.onload=()=>{const a=active;const cv=document.createElement('canvas');const sc=20;cv.width=a.w*sc;cv.height=a.h*sc;
  const ctx=cv.getContext('2d');const r=Math.min(cv.width/img.width,cv.height/img.height);const w=img.width*r,h=img.height*r;ctx.drawImage(img,(cv.width-w)/2,(cv.height-h)/2,w,h);
  const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;
  a.mesh.material.map=t;a.label.visible=false;a.mesh.material.color.set(0xffffff);a.mesh.material.opacity=1;a.mesh.material.needsUpdate=true;file.value=''};img.src=URL.createObjectURL(f)};
-function resize(){const w=viewer.clientWidth,h=viewer.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}addEventListener('resize',resize);resize();
+function resize(){const w=viewer.clientWidth,h=viewer.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}addEventListener('resize',resize);resize();if(window.ResizeObserver)new ResizeObserver(()=>resize()).observe(viewer);
 const v=new THREE.Vector3();
 renderer.setAnimationLoop(now=>{if(document.body.classList.contains('pastas-on')||document.hidden)return;if(thumbsDirty)renderThumbs();if(anim)anim(now);controls.update();renderer.render(scene,camera);
  if(active&&!anim){bust.updateMatrixWorld();v.copy(active.corner).applyMatrix4(bust.matrixWorld).project(camera);
@@ -256,14 +292,13 @@ const tb=document.getElementById('tb');const opt=(arr,sel)=>arr.map(x=>`<option$
 const TRASH=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 11v6M14 11v6"/></svg>`;
 function renum(){tb.querySelectorAll('tr').forEach((r,i)=>r.firstChild.textContent=i+1)}
 function addRow(){const r=document.createElement('tr');
- r.innerHTML=`<td class="n"></td><td><div class="step"><button>−</button><b>1</b><button>+</button></div></td><td><input class="inp"></td><td><input class="inp" placeholder="Nº"></td><td><select><option value="">Selecione</option>${opt(SIZES)}</select></td><td><div class="cor"><i style="background:${COLORS[bodyColor]}"></i><select>${opt(Object.keys(COLORS),bodyColor)}</select></div></td><td><button class="trash" title="Remover">${TRASH}</button></td>`;
+ r.innerHTML=`<td class="n"></td><td><div class="step"><button>−</button><b>1</b><button>+</button></div></td><td><input class="inp" placeholder="Nome"></td><td><input class="inp" placeholder="Nº"></td><td><select><option value="">Selecione</option>${opt(SIZES)}</select></td><td><button class="trash" title="Remover">${TRASH}</button></td>`;
  const [m,p]=r.querySelectorAll('.step button'),q=r.querySelector('.step b');m.onclick=()=>q.textContent=Math.max(1,+q.textContent-1);p.onclick=()=>q.textContent=+q.textContent+1;
- const cs=r.querySelector('.cor select');cs.onchange=()=>r.querySelector('.cor i').style.background=COLORS[cs.value];
  r.querySelector('.trash').onclick=()=>{r.remove();renum()};tb.append(r);renum()}
 for(let i=0;i<20;i++)addRow();document.getElementById('add').onclick=()=>{for(let i=0;i<10;i++)addRow()};
-function buildCSV(){const q=s=>'"'+String(s).replace(/"/g,'""')+'"';const rows=[['Quantidade','Nome','Número','Tamanho','Cor']];
- tb.querySelectorAll('tr').forEach(r=>{const [nome,num]=[...r.querySelectorAll('input')].map(e=>e.value.trim());const [tam,cor]=[...r.querySelectorAll('select')].map(e=>e.value);
-  if(!nome&&!num&&!tam)return;rows.push([r.querySelector('.step b').textContent,nome,num,tam,cor])});
+function buildCSV(){const q=s=>'"'+String(s).replace(/"/g,'""')+'"';const rows=[['Quantidade','Nome','Número','Tamanho']];
+ tb.querySelectorAll('tr').forEach(r=>{const [nome,num]=[...r.querySelectorAll('input')].map(e=>e.value.trim());const tam=r.querySelector('select').value;
+  if(!nome&&!num&&!tam)return;rows.push([r.querySelector('.step b').textContent,nome,num,tam])});
  return '\ufeff'+rows.map(r=>r.map(q).join(';')).join('\r\n')}
 const EXP=[['frente.png',0],['costas.png',Math.PI],['lado-esquerdo.png',-Math.PI/2],['lado-direito.png',Math.PI/2]];
 async function renderExports(S=1600){const out=[];const ecam=new THREE.PerspectiveCamera(30,1,1,2000);ecam.position.set(0,2,182);ecam.lookAt(0,2,0);
