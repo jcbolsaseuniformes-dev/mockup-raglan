@@ -43,7 +43,7 @@ background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.12),rgba(20,26,38
 .ctab{flex:1;height:32px;border:0;border-radius:8px;background:transparent;color:#cfd6e0;font:600 13.5px Nunito,sans-serif;cursor:pointer;transition:background .15s}
 .ctab:hover{background:rgba(255,255,255,.06)}
 .ctab.sel{background:linear-gradient(180deg,#2f8cff,#1767e6);color:#fff;box-shadow:0 0 14px rgba(40,130,255,.45)}
-.grid{display:grid;grid-template-columns:repeat(5,1fr);row-gap:14px;justify-items:center;padding:2px 10px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);row-gap:14px;justify-items:center;padding:2px 10px}
 .sw{width:40px;height:40px;border-radius:50%;cursor:pointer;border:1px solid rgba(255,255,255,.16);transition:transform .15s,box-shadow .15s}
 .sw.light{border-color:#cfcfcf}
 .sw:hover{transform:scale(1.08)}
@@ -133,8 +133,8 @@ background:linear-gradient(180deg,#2b8bff,#1462e0);box-shadow:0 0 26px rgba(30,1
 </div>
 <script type="module">
 import * as THREE from 'three';import {OrbitControls} from 'three/addons/controls/OrbitControls.js';import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';import {computeBoundsTree,acceleratedRaycast} from 'three-mesh-bvh';
-const COLORS={'Verde Petróleo':'#5a96a1','Azul Piscina':'#a0e3eb','Azul Royal':'#365ca5','Azul Marinho':'#213b86','Azul Claro':'#79a5e4',
- 'Roxo':'#4c297d','Magenta':'#8e0576','Rosa Claro':'#edb6d3','Lilás':'#d17af6','Vermelho':'#c3011f',
+const COLORS={'Azul Marinho':'#213b86','Azul Claro':'#79a5e4',
+ 'Roxo':'#4c297d','Magenta':'#8e0576','Lilás':'#d17af6','Vermelho':'#c3011f',
  'Vermelho Tomate':'#c83837','Laranja':'#d3721b','Mostarda':'#dfa927','Amarelo':'#fbeb38','Verde Limão':'#8fb637',
  'Verde Bandeira':'#548e51','Marrom':'#5e4234','Preto':'#000000','Cinza Claro':'#d0cec2','Branco':'#ffffff'};
 const RENDER={'Preto':'#151515','Branco':'#f7f7f7'};const tint=n=>RENDER[n]||COLORS[n];
