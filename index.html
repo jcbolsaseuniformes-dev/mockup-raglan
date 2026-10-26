@@ -41,6 +41,12 @@ background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.12),rgba(20,26,38
 .cpanel{padding:8px 14px 14px}
 .ctabs{display:flex;gap:6px;padding:4px;margin:0 0 12px;border-radius:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}
 .ctab{flex:1;height:32px;border:0;border-radius:8px;background:transparent;color:#cfd6e0;font:600 13.5px Nunito,sans-serif;cursor:pointer;transition:background .15s}
+.gsel{position:absolute;top:12px;left:12px;z-index:3;display:flex;gap:4px;padding:4px;border-radius:12px}
+.gbtn{height:32px;padding:0 16px;border:0;border-radius:9px;background:transparent;color:#cfd6e0;font:600 13.5px Nunito,sans-serif;cursor:pointer;transition:background .15s;white-space:nowrap}
+.gbtn:hover{background:rgba(255,255,255,.06)}
+.gbtn.sel{background:linear-gradient(180deg,#2f8cff,#1767e6);color:#fff;box-shadow:0 0 14px rgba(40,130,255,.45)}
+.gbtn:disabled{opacity:.6;cursor:progress}
+#gload{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;padding:10px 16px;border-radius:12px;background:rgba(14,19,30,.75);color:#cfe0f5;font:600 13.5px Nunito,sans-serif;pointer-events:none}
 .ctab:hover{background:rgba(255,255,255,.06)}
 .ctab.sel{background:linear-gradient(180deg,#2f8cff,#1767e6);color:#fff;box-shadow:0 0 14px rgba(40,130,255,.45)}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);row-gap:14px;justify-items:center;padding:2px 10px}
@@ -82,6 +88,7 @@ background:linear-gradient(180deg,#2b8bff,#1462e0);box-shadow:0 0 26px rgba(30,1
  .right{gap:12px}
  .cpanel{padding:8px 10px 14px}
  .ctab{height:42px;font-size:15px}
+ .gsel{top:8px;left:8px}.gbtn{height:38px;padding:0 16px;font-size:14.5px}
  .grid{row-gap:14px;padding:2px 0}
  .sw{width:44px;height:44px}
  .tpanel{flex:none}
@@ -121,6 +128,7 @@ background:linear-gradient(180deg,#2b8bff,#1462e0);box-shadow:0 0 26px rgba(30,1
    <div id="loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9fb3cc;font-size:14px;z-index:2">Carregando modelo…</div>
    <div class="circ" id="folder" title="Enviar imagem"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b8bff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6"/><path d="m9 13 3-3 3 3"/></svg></div>
    <input type="file" id="file" accept="image/*" hidden>
+   <div class="gsel glass" role="tablist" aria-label="Peça"><button class="gbtn sel" data-g="raglan" role="tab">Raglan</button><button class="gbtn" data-g="moletom" role="tab">Moletom</button></div>
   </div>
   <div class="thumbs glass" id="thumbs"></div>
  </div>
@@ -182,40 +190,35 @@ mat.onBeforeCompile=sh=>{sh.uniforms.uBody=uBody;sh.uniforms.uSleeve=uSleeve;sh.
   vec3 shirtC=mix(bodyC,slC,mk.r);
   diffuseColor.rgb=mix(shirtC,diffuseColor.rgb*0.85,mk.g);`)};
 mat.customProgramCacheKey=()=>'v6shirt';
-bust.add(shirtMesh);bust.updateMatrixWorld(true);
+const gRag=new THREE.Group();gRag.name='raglan';bust.add(gRag);gRag.add(shirtMesh);bust.updateMatrixWorld(true);
 function paintBody(){uBody.value.set(tint(bodyColor))}paintBody();
 const sm={color:new THREE.Color()},ribM={color:new THREE.Color()};
-const torso=shirtMesh;
-ground.position.y=MODEL_MIN_Y-H/2-0.2;
+ground.position.y=MODEL_MIN_Y-H/2-0.2;const RAGLAN_MIN_Y=MODEL_MIN_Y;
 // surface height via raycast against real mesh (front: side=1 hits from +z, back: side=-1 from -z)
 const _rc=new THREE.Raycaster();_rc.firstHitOnly=true;const _o=new THREE.Vector3(),_d=new THREE.Vector3();
-const surfZ=(x,y,sign)=>{_o.set(x,y,sign*200);_d.set(0,0,-sign);_rc.set(_o,_d);const h=_rc.intersectObject(shirtMesh,false)[0];return h?h.point.z:0};
 loadEl.remove();
-// print areas (v7: generic frames; front/back + sleeves)
-const AREAS=[
- {id:'pe',nome:'Peito esquerdo',w:10,h:15,cx:11.5,cy:51,side:1,lab:'top',view:0},
- {id:'pd',nome:'Peito direito',w:10,h:15,cx:-11.5,cy:51,side:1,lab:'top',view:0},
- {id:'fr',nome:'Frente',w:25,h:30,cx:0,cy:26.5,side:1,lab:'mid',view:0},
- {id:'cs',nome:'Costas superior',w:30,h:40,cx:0,cy:44,side:-1,lab:'mid',view:1},
- {id:'bc',nome:'Barra costas (frase)',w:30,h:4,cx:0,cy:7,side:-1,lab:'mid',view:1},
+// print areas (v11: generic per-garment builder; raglan + moletom)
+const AREA_DEFS=kind=>[
+ {id:'pe',nome:'Peito esquerdo',w:10,h:15,cx:11.5,cy:kind==='moletom'?49:51,side:1,lab:'top',view:0},
+ {id:'pd',nome:'Peito direito',w:10,h:15,cx:-11.5,cy:kind==='moletom'?49:51,side:1,lab:'top',view:0},
+ {id:'fr',nome:'Frente',w:25,h:30,cx:0,cy:kind==='moletom'?26:26.5,side:1,lab:'mid',view:0},
+ {id:'cs',nome:'Costas superior',w:30,h:40,cx:0,cy:kind==='moletom'?39.5:44,side:-1,lab:'mid',view:1},
+ {id:'bc',nome:'Barra costas (frase)',w:30,h:4,cx:0,cy:kind==='moletom'?13:7,side:-1,lab:'mid',view:1},
  {id:'me',nome:'Manga esquerda',w:11,h:15,sleeve:1,lab:'mid',view:2},
  {id:'md',nome:'Manga direita',w:11,h:15,sleeve:-1,lab:'mid',view:3}];
-// sleeve frames from mask-classified vertices (PCA of each sleeve)
-{const SP=sg.attributes.position,SU=sg.attributes.uv;
- for(const a of AREAS.filter(a=>a.sleeve)){const s=a.sleeve;const pts=[];
-  for(let i=0;i<SP.count;i++){const x=SP.getX(i);if(s*x<22)continue;const u=Math.min(511,Math.max(0,Math.floor(SU.getX(i)*512))),v=Math.min(511,Math.max(0,Math.floor(SU.getY(i)*512)));const k=(v*512+u)*4;
-   if(md[k]>128&&md[k+1]<128)pts.push(new THREE.Vector3(x,SP.getY(i),SP.getZ(i)))}
+const _ro=new THREE.Vector3(),_rd=new THREE.Vector3();const REST=.42;
+function surfP(a,u,v,off){const p=a.O.clone().addScaledVector(a.R,u).addScaledVector(a.U,v);_ro.copy(p).addScaledVector(a.N,200);_rd.copy(a.N).negate();_rc.set(_ro,_rd);
+ const h=_rc.intersectObject(a.target,false)[0];if(h)p.copy(h.point);return p.addScaledVector(a.N,off)}
+function buildAreas(G){const AREAS=AREA_DEFS(G.kind);const pickables=[];
+ // sleeve frames from sleeve-classified vertices (PCA of each sleeve)
+ for(const a of AREAS.filter(a=>a.sleeve)){const s=a.sleeve;const pts=G.sleevePts(s);
   const c=new THREE.Vector3();pts.forEach(q=>c.add(q));c.divideScalar(pts.length);
   const C=[0,0,0,0,0,0,0,0,0];for(const q of pts){const d=[q.x-c.x,q.y-c.y,q.z-c.z];for(let r=0;r<3;r++)for(let t=0;t<3;t++)C[r*3+t]+=d[r]*d[t]}
   let ax=new THREE.Vector3(s,-1,0).normalize();for(let it=0;it<50;it++){ax=new THREE.Vector3(C[0]*ax.x+C[1]*ax.y+C[2]*ax.z,C[3]*ax.x+C[4]*ax.y+C[5]*ax.z,C[6]*ax.x+C[7]*ax.y+C[8]*ax.z).normalize()}
   if(ax.y>0)ax.negate();let tmax=-1e9;for(const q of pts)tmax=Math.max(tmax,q.clone().sub(c).dot(ax));
   const N=new THREE.Vector3(s,0,0);N.sub(ax.clone().multiplyScalar(N.dot(ax))).normalize();
-  a.U=ax.clone().negate();a.N=N;a.R=a.U.clone().cross(N);a.O=c.clone().add(ax.clone().multiplyScalar(tmax-a.h/2-8));a.sleeveLen=tmax}}
-for(const a of AREAS)if(!a.sleeve){a.O=new THREE.Vector3(a.cx,a.cy,0);a.N=new THREE.Vector3(0,0,a.side);a.R=new THREE.Vector3(a.side,0,0);a.U=new THREE.Vector3(0,1,0)}
-const _ro=new THREE.Vector3(),_rd=new THREE.Vector3();
-function surfP(a,u,v,off){const p=a.O.clone().addScaledVector(a.R,u).addScaledVector(a.U,v);_ro.copy(p).addScaledVector(a.N,200);_rd.copy(a.N).negate();_rc.set(_ro,_rd);
- const h=_rc.intersectObject(shirtMesh,false)[0];if(h)p.copy(h.point);return p.addScaledVector(a.N,off)}
-const pickables=[];const REST=.42;
+  a.U=ax.clone().negate();a.N=N;a.R=a.U.clone().cross(N);a.O=c.clone().add(ax.clone().multiplyScalar(tmax-a.h/2-G.sleeveOff));a.sleeveLen=tmax}
+ for(const a of AREAS){a.target=G.mesh;if(!a.sleeve){a.O=new THREE.Vector3(a.cx,a.cy,0);a.N=new THREE.Vector3(0,0,a.side);a.R=new THREE.Vector3(a.side,0,0);a.U=new THREE.Vector3(0,1,0)}}
 for(const a of AREAS){const g=new THREE.PlaneGeometry(a.w,a.h,24,24);const p=g.attributes.position;
  for(let k=0;k<p.count;k++){const q=surfP(a,p.getX(k),p.getY(k),0.45);p.setXYZ(k,q.x,q.y,q.z)}g.computeVertexNormals();
  const R=Math.min(1.4,a.h/2-0.3,a.w/2-0.3);const ac=document.createElement('canvas');const SC=20;ac.width=a.w*SC;ac.height=a.h*SC;const cx2=ac.getContext('2d');cx2.fillStyle='#000';cx2.fillRect(0,0,ac.width,ac.height);cx2.fillStyle='#fff';cx2.beginPath();cx2.roundRect(0,0,ac.width,ac.height,R*SC);cx2.fill();
@@ -230,9 +233,17 @@ for(const a of AREAS){const g=new THREE.PlaneGeometry(a.w,a.h,24,24);const p=g.a
   L.textAlign='center';L.textBaseline='middle';const ty=a.lab==='top'?fs*1.3:lc.height*(a.id==='fr'?0.42:0.5);
   L.fillStyle='#1d3fa8';L.fillText(txt,lc.width/2,ty);
   const lt=new THREE.CanvasTexture(lc);lt.colorSpace=THREE.SRGBColorSpace;lt.anisotropy=8;
-  const lm=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:lt,transparent:true,depthWrite:false,side:THREE.DoubleSide}));lm.renderOrder=3;lm.raycast=()=>{};a.label=lm;bust.add(lm)}
- a.mesh=m;a.line=line;m.userData.area=a;bust.add(m,line);pickables.push(m);
+  const lm=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:lt,transparent:true,depthWrite:false,side:THREE.DoubleSide}));lm.renderOrder=3;lm.raycast=()=>{};a.label=lm;G.group.add(lm)}
+ a.mesh=m;a.line=line;m.userData.area=a;G.group.add(m,line);pickables.push(m);
  a.center=surfP(a,0,0,0);a.corner=surfP(a,a.w/2,a.h/2,0)}
+ G.areas=AREAS;G.pickables=pickables;return G}
+const GARMENTS={};
+GARMENTS.raglan=buildAreas({kind:'raglan',nome:'Camisa Raglan',group:gRag,mesh:shirtMesh,minY:RAGLAN_MIN_Y,sleeveOff:8,
+ sleevePts:s=>{const SP=sg.attributes.position,SU=sg.attributes.uv;const pts=[];
+  for(let i=0;i<SP.count;i++){const x=SP.getX(i);if(s*x<22)continue;const u=Math.min(511,Math.max(0,Math.floor(SU.getX(i)*512))),v=Math.min(511,Math.max(0,Math.floor(SU.getY(i)*512)));const k=(v*512+u)*4;
+   if(md[k]>128&&md[k+1]<128)pts.push(new THREE.Vector3(x,SP.getY(i),SP.getZ(i)))}return pts}});
+let cur=GARMENTS.raglan,AREAS=cur.areas,pickables=cur.pickables;
+
 bust.position.y=-H/2;bust.traverse(o=>{if(o.isMesh&&!o.userData.area&&o!==ground){o.castShadow=true;o.receiveShadow=true}});
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.enablePan=false;controls.minDistance=40;controls.maxDistance=400;
 const HOME={pos:new THREE.Vector3(0,8,198),tgt:new THREE.Vector3(-3,6,0)};camera.position.copy(HOME.pos);controls.target.copy(HOME.tgt);
@@ -253,7 +264,7 @@ const ray=new THREE.Raycaster(),mv=new THREE.Vector2();let down=null;
 renderer.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
 renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;const r=renderer.domElement.getBoundingClientRect();
  mv.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(mv,camera);
- const hits=ray.intersectObjects([torso,...pickables]);const h=hits.find(h=>h.object.userData.area);
+ const hits=ray.intersectObjects([cur.mesh,...pickables]);const h=hits.find(h=>h.object.userData.area);
  if(h&&(hits[0].object===h.object||hits[0].distance>h.distance-1)){const cand=hits.filter(x=>x.object.userData.area&&x.distance<h.distance+1).map(x=>x.object.userData.area).sort((p,q)=>p.w*p.h-q.w*q.h);focus(cand[0])}
  else if(active)setView(view)});
 // tabs + thumbs
@@ -311,11 +322,48 @@ async function renderExports(S=1600){const out=[];const ecam=new THREE.Perspecti
   out.push([name,await new Promise(res=>c.toBlob(res,'image/png'))])}
  thumbsDirty=true;return out}
 window.__renderExports=renderExports;
+// ===== v11: garment switch (Raglan | Moletom), sweater lazy-loaded on first selection =====
+const gMol=new THREE.Group();gMol.name='moletom';gMol.visible=false;bust.add(gMol);
+let molPromise=null;
+async function loadMoletom(){const ld=document.createElement('div');ld.id='gload';ld.textContent='Carregando moletom…';viewer.append(ld);
+ try{const g=await gl.loadAsync('moletom.glb',e=>{if(e.total)ld.textContent='Carregando moletom… '+Math.round(e.loaded/e.total*100)+'%'});
+  let m;g.scene.traverse(o=>{if(o.isMesh)m=o});const geo=m.geometry;
+  for(const k of ['position','normal','uv','_sleeve']){const at=geo.attributes[k];if(!at)continue;const f=new Float32Array(at.count*at.itemSize);const gs=[at.getX,at.getY,at.getZ];for(let i=0;i<at.count;i++)for(let c=0;c<at.itemSize;c++)f[i*at.itemSize+c]=gs[c].call(at,i);geo.setAttribute(k,new THREE.BufferAttribute(f,at.itemSize))}
+  g.scene.updateMatrixWorld(true);geo.applyMatrix4(m.matrixWorld);m.removeFromParent();m.position.set(0,0,0);m.rotation.set(0,0,0);m.scale.set(1,1,1);
+  geo.scale(100,100,100);geo.computeBoundingBox();let b=geo.boundingBox;geo.translate(-(b.min.x+b.max.x)/2,-b.min.y,-(b.min.z+b.max.z)/2);geo.computeBoundingBox();geo.computeBoundsTree();
+  const mm=m.material;mm.side=THREE.DoubleSide;mm.roughnessMap=null;mm.metalnessMap=null;mm.roughness=.9;mm.metalness=0;
+  mm.onBeforeCompile=sh=>{sh.uniforms.uBody=uBody;sh.uniforms.uSleeve=uSleeve;
+   sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float _sleeve;varying float vSl;').replace('#include <begin_vertex>','#include <begin_vertex>\nvSl=_sleeve;');
+   sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 uBody;uniform vec3 uSleeve;varying float vSl;')
+   .replace('#include <map_fragment>',`#include <map_fragment>
+  float L=dot(diffuseColor.rgb,vec3(.3333));vec3 c=mix(uBody,uSleeve,step(.5,vSl));
+  float sat=clamp((max(max(c.r,c.g),c.b)-min(min(c.r,c.g),c.b))*1.8,0.0,1.0);
+  diffuseColor.rgb=c*clamp(L,0.0,1.0)*mix(0.86,0.66,sat);`)};
+  mm.customProgramCacheKey=()=>'v11moletom';mm.needsUpdate=true;
+  m.castShadow=true;m.receiveShadow=true;gMol.add(m);
+  // build print areas with bust in neutral pose (areas are authored in garment-local coordinates)
+  const r0=bust.rotation.y,py=bust.position.y;bust.rotation.y=0;bust.position.y=0;bust.updateMatrixWorld(true);
+  const SP=geo.attributes.position,SS=geo.attributes._sleeve;
+  GARMENTS.moletom=buildAreas({kind:'moletom',nome:'Moletom gola careca',group:gMol,mesh:m,minY:geo.boundingBox.min.y,sleeveOff:5.5,
+   sleevePts:s=>{const pts=[];for(let i=0;i<SP.count;i++){const x=SP.getX(i);if(s*x<14||SS.getX(i)<.5)continue;pts.push(new THREE.Vector3(x,SP.getY(i),SP.getZ(i)))}return pts}});
+  bust.rotation.y=r0;bust.position.y=py;bust.updateMatrixWorld(true);
+  renderer.compile(scene,camera);
+ }catch(e){console.error(e);molPromise=null;alert('Não foi possível carregar o moletom. Tente novamente.')}
+ finally{ld.remove()}}
+const gbtns=[...document.querySelectorAll('.gbtn')];
+async function setGarment(k){if(cur.kind===k)return;
+ if(!GARMENTS[k]){gbtns.forEach(b=>b.disabled=true);try{if(!molPromise)molPromise=loadMoletom();await molPromise}finally{gbtns.forEach(b=>b.disabled=false)}if(!GARMENTS[k])return}
+ cur.group.visible=false;cur=GARMENTS[k];cur.group.visible=true;AREAS=cur.areas;pickables=cur.pickables;
+ ground.position.y=cur.minY-H/2-0.2;document.querySelector('.brand').textContent=cur.nome;
+ gbtns.forEach(b=>b.classList.toggle('sel',b.dataset.g===k));active=null;bust.updateMatrixWorld(true);setView(0);thumbsDirty=true}
+gbtns.forEach(b=>b.onclick=()=>setGarment(b.dataset.g));
+window.__garment=setGarment;window.__cur=()=>cur.kind;
+
 document.getElementById('csv').onclick=async()=>{const btn=document.getElementById('csv'),txt=document.getElementById('csvTxt');if(btn.disabled)return;btn.disabled=true;txt.textContent='Gerando pedido…';
  try{const {default:JSZip}=await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');const d=new Date(),z=n=>String(n).padStart(2,'0');
-  const stamp=`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`;const base='pedido-camisa-'+stamp;
+  const stamp=`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`;const base='pedido-'+(cur.kind==='moletom'?'moletom':'camisa')+'-'+stamp;
   const zip=new JSZip();const f=zip.folder(base);f.file('pedido.csv',buildCSV());
-  f.file('info.txt',`Pedido – Camisa Raglan\r\nData: ${d.toLocaleString('pt-BR')}\r\nCor da camisa (corpo): ${bodyColor}\r\nCor da manga (mangas e gola): ${sleeveName}\r\nÁreas com imagem: ${AREAS.filter(a=>a.mesh.material.map).map(a=>a.nome+' ('+a.w+'x'+a.h+' cm)').join(', ')||'nenhuma'}\r\n`);
+  f.file('info.txt',`Pedido – ${cur.nome}\r\nModelo: ${cur.nome}\r\nData: ${d.toLocaleString('pt-BR')}\r\nCor do corpo: ${bodyColor}\r\nCor da manga (mangas e gola): ${sleeveName}\r\nÁreas com imagem: ${AREAS.filter(a=>a.mesh.material.map).map(a=>a.nome+' ('+a.w+'x'+a.h+' cm)').join(', ')||'nenhuma'}\r\n`);
   for(const [n,b] of await renderExports())f.file(n,b);
   const blob=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=base+'.zip';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
  catch(e){console.error(e);alert('Não foi possível gerar o pedido. Tente novamente.')}
