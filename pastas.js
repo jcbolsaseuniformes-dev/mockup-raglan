@@ -17,12 +17,26 @@ class BaseStore{
  related(parentId){return[...this.r.values()].filter(x=>x.parentId===parentId).sort((a,b)=>a.createdAt-b.createdAt)}
  queue(){return[...this.q.values()].filter(x=>this.p.has(x.photoId)).sort((a,b)=>a.order-b.order||a.addedAt-b.addedAt)}
  queued(photoId){return[...this.q.values()].find(x=>x.photoId===photoId)}
+ /* v13: the (normal) folder a photo belongs to: its folder, or for a photo in a Histórico, its origin/parent folder */
+ homeOf(photoId){const p=this.p.get(photoId);if(!p)return null;if(!this.isHist(p.folderId))return p.folderId;const o=p.originFolderId;return o&&this.f.has(o)&&!this.isHist(o)?o:this.f.get(p.folderId)?.parentId??null}
+ /* queue entries carry folderId (origin folder) since v13; older entries derive it from the photo (no rewrite) */
+ qFolder(x){return x.folderId&&this.f.has(x.folderId)?x.folderId:this.homeOf(x.photoId)}
+ queueIn(folderId){if(this.isHist(folderId))folderId=this.f.get(folderId).parentId;return this.queue().filter(x=>this.qFolder(x)===folderId)}
  folder(id){return this.f.get(id)}
  photo(id){return this.p.get(id)}
  path(id){const out=[];let c=this.f.get(id);while(c){out.unshift(c);c=this.f.get(c.parentId)}return out}
  descendants(id){const out=[];const st=[id];while(st.length){const c=st.pop();for(const x of this.f.values())if(x.parentId===c){out.push(x.id);st.push(x.id)}}return out}
  isInside(id,targetId){return targetId===id||this.descendants(id).includes(targetId)}
- counts(id){return{folders:this.folders(id).length,photos:this.photos(id).length}}
+ counts(id){return{folders:this.folders(id).filter(x=>!x.isHistory).length,photos:this.photos(id).length}}
+ /* v13: every normal folder has one 'Histórico' subfolder (doc id hist_<folderId>, isHistory:true) */
+ isHist(id){return!!(id&&this.f.get(id)?.isHistory)}
+ histId(folderId){return'hist_'+folderId}
+ hist(folderId){return this.f.get('hist_'+folderId)}
+ histFields(folderId){const f=this.f.get(folderId);return{name:'Histórico',parentId:folderId,isHistory:true,createdAt:(f?.createdAt||0)+1}}
+ needsHist(){const only=localStorage.getItem('raglan-autohist-only');return[...this.f.values()].filter(f=>!f.isHistory&&!this.f.has('hist_'+f.id)&&(!only||String(f.name).startsWith(only)))}
+ /* where a queue row dropped back on the grid goes: the folder being viewed, else the photo's origin folder */
+ restoreTarget(photoId,viewing){const p=this.p.get(photoId);if(!p)return null;if(viewing&&this.f.has(viewing)&&!this.isHist(viewing))return viewing;
+  if(!this.isHist(p.folderId))return p.folderId;const o=p.originFolderId;if(o&&this.f.has(o)&&!this.isHist(o))return o;return this.f.get(p.folderId)?.parentId??null}
  photoURL(p){if(p.url)return p.url;if(p.thumb)return p.thumb;if(!p.blob)return'';let u=this.urls.get(p.id);if(!u){u=URL.createObjectURL(p.blob);this.urls.set(p.id,u)}return u}
  async fullURL(p){return this.photoURL(p)}
  _revoke(id){const u=this.urls.get(id);if(u){URL.revokeObjectURL(u);this.urls.delete(id)}}
@@ -36,7 +50,12 @@ class IndexedDBStore extends BaseStore{
   const all=s=>new Promise((res,rej)=>{const r=this.db.transaction(s).objectStore(s).getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
   for(const x of await all('folders'))this.f.set(x.id,x);for(const x of await all('photos'))this.p.set(x.id,x);for(const x of await all('related'))this.r.set(x.id,x);for(const x of await all('queue'))this.q.set(x.id,x);return this}
  _tx(store,fn){return new Promise((res,rej)=>{const t=this.db.transaction(store,'readwrite');fn(t.objectStore(store));t.oncomplete=()=>res();t.onerror=()=>rej(t.error)})}
- async createFolder(name,parentId=null){const x={id:uid(),name,parentId,createdAt:Date.now()};await this._tx('folders',s=>s.put(x));this.f.set(x.id,x);this.emit();return x}
+ async createFolder(name,parentId=null){if(this.isHist(parentId))throw new Error('historico');const x={id:uid(),name,parentId,createdAt:Date.now()};this.f.set(x.id,x);const h={id:this.histId(x.id),...this.histFields(x.id)};this.f.set(h.id,h);await this._tx('folders',s=>{s.put(x);s.put(h)});this.emit();return x}
+ async ensureHistory(){const need=this.needsHist();if(!need.length)return;const hs=need.map(f=>({id:this.histId(f.id),...this.histFields(f.id)}));await this._tx('folders',s=>hs.forEach(h=>s.put(h)));hs.forEach(h=>this.f.set(h.id,h));this.emit()}
+ async toQueue(photoId,order){const p=this.p.get(photoId);const x={id:uid(),photoId,order,addedAt:Date.now(),folderId:this.homeOf(photoId)};await this._tx('queue',s=>s.put(x));this.q.set(x.id,x);
+  if(p&&!this.isHist(p.folderId)){if(!this.hist(p.folderId))await this.ensureHistory();const y={...p,folderId:this.histId(p.folderId),originFolderId:p.folderId};await this._tx('photos',s=>s.put(y));this.p.set(y.id,y)}this.emit();return x}
+ async restoreFromQueue(qid,folderId){const q=this.q.get(qid);await this._tx('queue',s=>s.delete(qid));this.q.delete(qid);const p=q&&this.p.get(q.photoId);
+  if(p&&folderId){const y={...p,folderId,groupedAt:Date.now()};delete y.originFolderId;await this._tx('photos',s=>s.put(y));this.p.set(y.id,y)}this.emit()}
  async renameFolder(id,name){const x={...this.f.get(id),name};await this._tx('folders',s=>s.put(x));this.f.set(id,x);this.emit()}
  async moveFolder(id,parentId){if(parentId&&this.isInside(id,parentId))throw new Error('ciclo');const x={...this.f.get(id),parentId};await this._tx('folders',s=>s.put(x));this.f.set(id,x);this.emit()}
  async deleteFolder(id){const ids=[id,...this.descendants(id)];const ph=[...this.p.values()].filter(p=>ids.includes(p.folderId));
@@ -48,14 +67,14 @@ class IndexedDBStore extends BaseStore{
  async addRelatedFile(parentId,file,kind,thumb){const x={id:uid(),parentId,file,name:file.name,kind,mime:file.type||'',size:file.size,createdAt:Date.now()};if(thumb)x.thumb=thumb;await this._tx('related',s=>s.put(x));this.r.set(x.id,x);this.emit();return x}
  async original(r){return r.file}
  async setTitle(kind,id,title){const m=kind==='related'?this.r:this.p,st=kind==='related'?'related':'photos';const x={...m.get(id),title};await this._tx(st,s=>s.put(x));m.set(id,x);this.emit()}
- async dupPhoto(src,folderId,title){const x={...src,id:uid(),folderId,createdAt:Date.now()};delete x.groupedAt;if(title!==undefined)x.title=title;await this._tx('photos',s=>s.put(x));this.p.set(x.id,x);this.emit();return x}
+ async dupPhoto(src,folderId,title){const x={...src,id:uid(),folderId,createdAt:Date.now()};delete x.groupedAt;delete x.originFolderId;if(title!==undefined)x.title=title;await this._tx('photos',s=>s.put(x));this.p.set(x.id,x);this.emit();return x}
  async dupRelated(src,parentId,title){const x={...src,id:uid(),parentId,createdAt:Date.now()};if(title!==undefined)x.title=title;await this._tx('related',s=>s.put(x));this.r.set(x.id,x);this.emit();return x}
  chatListen(key,cb){this._ck=key;this._ccb=cb;cb(this._chat(key))}
  _chat(key){try{return JSON.parse(localStorage.getItem('raglan-chat-'+key)||'[]')}catch{return[]}}
  async chatSend(key,m){const l=this._chat(key);l.push({id:uid(),...m});localStorage.setItem('raglan-chat-'+key,JSON.stringify(l.slice(-100)));if(this._ck===key)this._ccb(this._chat(key))}
  async chatDelete(key,id){localStorage.setItem('raglan-chat-'+key,JSON.stringify(this._chat(key).filter(x=>x.id!==id)));if(this._ck===key)this._ccb(this._chat(key))}
  async deleteRelated(id){await this._tx('related',s=>s.delete(id));this._revoke(id);this.r.delete(id);this.emit()}
- async enqueue(photoId,order){const x={id:uid(),photoId,order,addedAt:Date.now()};await this._tx('queue',s=>s.put(x));this.q.set(x.id,x);this.emit();return x}
+ async enqueue(photoId,order){const x={id:uid(),photoId,order,addedAt:Date.now(),folderId:this.homeOf(photoId)};await this._tx('queue',s=>s.put(x));this.q.set(x.id,x);this.emit();return x}
  async reorderQueue(id,order){const x={...this.q.get(id),order};await this._tx('queue',s=>s.put(x));this.q.set(id,x);this.emit()}
  async dequeue(id){await this._tx('queue',s=>s.delete(id));this.q.delete(id);this.emit()}
  async setQueueStatus(id,status){const x=this.q.get(id);if(!x||(x.status||'fila')===status)return;const y={...x,status};await this._tx('queue',s=>s.put(y));this.q.set(id,y);this.emit()}
@@ -100,18 +119,30 @@ class FirebaseStore extends BaseStore{
   const listen=(col,map)=>new Promise(res=>{let first=true;fs.onSnapshot(fs.collection(this.db,col),snap=>{let onlyNotes=true;
    snap.docChanges().forEach(ch=>{const d={id:ch.doc.id,...ch.doc.data()};if(ch.type==='removed'){map.delete(d.id);this.full.delete(d.id);onlyNotes=false}else{const old=map.get(d.id);if(!old||Object.keys(d).some(k=>k!=='note'&&d[k]!==old[k]))onlyNotes=false;map.set(d.id,d)}});
    if(first){first=false;res()}else this.emit(onlyNotes?'remote-note':'data')},err=>{console.warn('Firebase:',err.message);res()})});
-  await Promise.all([listen(this.cf,this.f),listen(this.cp,this.p),listen(this.cr,this.r),listen(this.cq,this.q)]);return this}
+  await Promise.all([listen(this.cf,this.f),listen(this.cp,this.p),listen(this.cr,this.r),listen(this.cq,this.q)]);this.onChange(k=>{if(k==='data')this.ensureHistory()});this.ensureHistory();return this}
  _d(col,id){return this.fs.doc(this.db,col,id)}
  _M(){return{at:this.fs.serverTimestamp(),by:CLIENT_ID}}
  _u(...els){const o={};for(const e of els)o['mods.'+e]=this._M();return o}
  async _batchDelete(refs){for(let i=0;i<refs.length;i+=450){const b=this.fs.writeBatch(this.db);refs.slice(i,i+450).forEach(r=>b.delete(r));await b.commit()}}
  photoURL(p){return p.thumb||this.full.get(p.id)||''}
- async fullURL(p){if(this.full.has(p.id))return this.full.get(p.id);const s=await this.fs.getDoc(this._d(this.cd,p.id));const u=s.exists()?s.data().data:p.thumb;this.full.set(p.id,u);return u}
- async createFolder(name,parentId=null){const x={name,parentId,createdAt:Date.now()};const id=uid();this.f.set(id,{id,...x});this.emit();await this.fs.setDoc(this._d(this.cf,id),{...x,mods:{self:this._M()}});return{id,...x}}
+ async fullURL(p){if(this.full.has(p.id))return this.full.get(p.id);if(p.chunks){/* v13: large originals (client orders) are chunked like related files */const parts=await Promise.all(Array.from({length:p.chunks},(_,i)=>this.fs.getDoc(this._d(this.cd,p.id+'_c'+i))));const u=parts.map(d=>d.exists()?d.data().data:'').join('')||p.thumb;this.full.set(p.id,u);return u}const s=await this.fs.getDoc(this._d(this.cd,p.id));const u=s.exists()?s.data().data:p.thumb;this.full.set(p.id,u);return u}
+ async createFolder(name,parentId=null){if(this.isHist(parentId))throw new Error('historico');const x={name,parentId,createdAt:Date.now()};const id=uid();this.f.set(id,{id,...x});const hid=this.histId(id),h=this.histFields(id);this.f.set(hid,{id:hid,...h});this.emit();
+  const b=this.fs.writeBatch(this.db);b.set(this._d(this.cf,id),{...x,mods:{self:this._M()}});b.set(this._d(this.cf,hid),h);await b.commit();return{id,...x}}
+ /* lazily add the Histórico of folders created before v13. Deterministic id + identical content => two clients doing it at once write the same doc (no duplicates). No mods => no glow. */
+ async ensureHistory(){if(this._eh)return;const need=this.needsHist().filter(f=>!this._ehDone?.has(f.id));if(!need.length)return;this._eh=true;this._ehDone??=new Set();
+  try{const b=this.fs.writeBatch(this.db);for(const f of need.slice(0,400)){b.set(this._d(this.cf,this.histId(f.id)),this.histFields(f.id));this._ehDone.add(f.id)}await b.commit()}catch(e){console.warn('Histórico:',e.message)}finally{this._eh=false}}
+ /* drag to the queue: one atomic batch = queue entry + photo moved into its folder's Histórico (only folderId/originFolderId change; data, related, notes stay linked by photo id) */
+ async toQueue(photoId,order){const p=this.p.get(photoId);const id=uid();const x={photoId,order,addedAt:Date.now(),folderId:this.homeOf(photoId)};const b=this.fs.writeBatch(this.db);b.set(this._d(this.cq,id),{...x,mods:{self:this._M()}});
+  if(p&&!this.isHist(p.folderId)){const hid=this.histId(p.folderId);if(!this.f.has(hid))b.set(this._d(this.cf,hid),this.histFields(p.folderId));b.update(this._d(this.cp,photoId),{folderId:hid,originFolderId:p.folderId,...this._u('image')})}
+  await b.commit();return{id,...x}}
+ /* drag a queue row back to the grid: leave the queue + leave Histórico (to folderId), newest in its technique group */
+ async restoreFromQueue(qid,folderId){const q=this.q.get(qid);const b=this.fs.writeBatch(this.db);b.delete(this._d(this.cq,qid));const p=q&&this.p.get(q.photoId);
+  if(p&&folderId)b.update(this._d(this.cp,p.id),{folderId,groupedAt:Date.now(),originFolderId:this.fs.deleteField(),...this._u('image')});await b.commit()}
  async renameFolder(id,name){const x=this.f.get(id);if(x&&x.name===name)return;if(x){this.f.set(id,{...x,name});this.emit()}await this.fs.updateDoc(this._d(this.cf,id),{name,...this._u('name')})}
  async moveFolder(id,parentId){if(parentId&&this.isInside(id,parentId))throw new Error('ciclo');await this.fs.updateDoc(this._d(this.cf,id),{parentId,...this._u('self')})}
  async deleteFolder(id){const ids=[id,...this.descendants(id)];const ph=[...this.p.values()].filter(p=>ids.includes(p.folderId));
-  await this._batchDelete([...ph.flatMap(p=>[...this._cascadeRefs(p.id),this._d(this.cp,p.id),this._d(this.cd,p.id)]),...ids.map(i=>this._d(this.cf,i))])}
+  await this._batchDelete([...ph.flatMap(p=>[...this._cascadeRefs(p.id),...this._phRefs(p)]),...ids.map(i=>this._d(this.cf,i))])}
+ _phRefs(p){return[this._d(this.cp,p.id),this._d(this.cd,p.id),...Array.from({length:p.chunks||0},(_,i)=>this._d(this.cd,p.id+'_c'+i))]}
  _relRefs(x){return[this._d(this.cr,x.id),this._d(this.cd,x.id),...Array.from({length:x.chunks||0},(_,i)=>this._d(this.cd,x.id+'_c'+i))]}
  // v12: original .svg/.cdr files kept intact, base64 split across photoData/<id>_c<i> docs (each < ~700 KB)
  async addRelatedFile(parentId,file,kind,thumb){const id=uid();const b64=await blobToDataURL(file);const CH=700000;const n=Math.max(1,Math.ceil(b64.length/CH));
@@ -126,8 +157,8 @@ class FirebaseStore extends BaseStore{
  // v12: optional display name; original 'name' (file name) is kept
  async setTitle(kind,id,title){const m=kind==='related'?this.r:this.p;const x=m.get(id);if(x&&(x.title||'')===title)return;if(x){m.set(id,{...x,title});this.emit()}await this.fs.updateDoc(this._d(kind==='related'?this.cr:this.cp,id),{title,...this._u('title')})}
  _clean(src){const x={...src};delete x.id;return x}
- async dupPhoto(src,folderId,title){const id=uid();const data=await this.fullURL(src);await this.fs.setDoc(this._d(this.cd,id),{data});this.full.set(id,data);
-  const x={...this._clean(src),folderId,createdAt:Date.now()};delete x.groupedAt;delete x.noteMods;if(title!==undefined)x.title=title;x.mods={image:this._M()};await this.fs.setDoc(this._d(this.cp,id),x);return{id,...x}}
+ async dupPhoto(src,folderId,title){const id=uid();if(src.chunks){for(let i=0;i<src.chunks;i++){const c=await this.fs.getDoc(this._d(this.cd,src.id+'_c'+i));await this.fs.setDoc(this._d(this.cd,id+'_c'+i),c.exists()?c.data():{data:'',part:i,of:src.chunks})}}else{const data=await this.fullURL(src);await this.fs.setDoc(this._d(this.cd,id),{data});this.full.set(id,data)}
+  const x={...this._clean(src),folderId,createdAt:Date.now()};delete x.groupedAt;delete x.noteMods;delete x.originFolderId;if(title!==undefined)x.title=title;x.mods={image:this._M()};await this.fs.setDoc(this._d(this.cp,id),x);return{id,...x}}
  async dupRelated(src,parentId,title){const id=uid();
   if(src.chunks){for(let i=0;i<src.chunks;i++){const c=await this.fs.getDoc(this._d(this.cd,src.id+'_c'+i));await this.fs.setDoc(this._d(this.cd,id+'_c'+i),c.exists()?c.data():{data:'',part:i,of:src.chunks})}}
   else{const data=await this.fullURL(src);await this.fs.setDoc(this._d(this.cd,id),{data})}
@@ -138,7 +169,7 @@ class FirebaseStore extends BaseStore{
  async chatSend(key,m){await this.fs.setDoc(this.fs.doc(this._chatCol(key),uid()),m)}
  async chatDelete(key,id){await this.fs.deleteDoc(this.fs.doc(this._chatCol(key),id))}
  async deleteRelated(id){const x=this.r.get(id)||{id};await this._batchDelete(this._relRefs(x));this.full.delete(id);if(x.parentId&&this.p.has(x.parentId))await this.fs.updateDoc(this._d(this.cp,x.parentId),this._u('related')).catch(()=>{})}
- async enqueue(photoId,order){const id=uid();const x={photoId,order,addedAt:Date.now()};await this.fs.setDoc(this._d(this.cq,id),{...x,mods:{self:this._M()}});return{id,...x}}
+ async enqueue(photoId,order){const id=uid();const x={photoId,order,addedAt:Date.now(),folderId:this.homeOf(photoId)};await this.fs.setDoc(this._d(this.cq,id),{...x,mods:{self:this._M()}});return{id,...x}}
  async reorderQueue(id,order){const x=this.q.get(id);if(x&&x.order===order)return;if(x){this.q.set(id,{...x,order});this.emit()}await this.fs.updateDoc(this._d(this.cq,id),{order,...this._u('order')})}
  async dequeue(id){await this.fs.deleteDoc(this._d(this.cq,id))}
  async setQueueStatus(id,status){const x=this.q.get(id);if(!x||(x.status||'fila')===status)return;this.q.set(id,{...x,status});this.emit();await this.fs.updateDoc(this._d(this.cq,id),{status})}/* status is not a tracked modification: no mods.* write, no glow */
@@ -152,7 +183,7 @@ class FirebaseStore extends BaseStore{
  async setTechniques(id,techniques,groupedAt){const u={techniques};if(groupedAt)u.groupedAt=groupedAt;const x=this.p.get(id);const before=Array.isArray(x?.techniques)?x.techniques:[];const ch=['dtf','bordado','serigrafia','sublimacao'].filter(k=>before.includes(k)!==techniques.includes(k)).map(k=>'tech_'+k);if(!ch.length)return;
   if(x){this.p.set(id,{...x,...u});this.emit()}await this.fs.updateDoc(this._d(this.cp,id),{...u,...this._u(...ch)})}
  async movePhoto(id,folderId){await this.fs.updateDoc(this._d(this.cp,id),{folderId,...this._u('image')})}
- async deletePhoto(id){await this._batchDelete([...this._cascadeRefs(id),this._d(this.cp,id),this._d(this.cd,id)]);this.full.delete(id)}
+ async deletePhoto(id){await this._batchDelete([...this._cascadeRefs(id),...this._phRefs(this.p.get(id)||{id})]);this.full.delete(id)}
 }
 
 async function createStore(){
@@ -168,6 +199,7 @@ async function compress(file,max=CFG.maxImageSize||1600,q=CFG.jpegQuality||.85){
 // ---------- UI ----------
 const $=(h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstElementChild};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const HIST_SVG=`<svg class="folder-ic hist-ic" viewBox="0 0 104 84"><defs><linearGradient id="hb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a96ab"/><stop offset="1" stop-color="#4d586b"/></linearGradient></defs><rect x="8" y="22" width="88" height="56" rx="8" fill="url(#hb)"/><rect x="4" y="10" width="96" height="16" rx="5" fill="#a9b4c6"/><rect x="40" y="32" width="24" height="6" rx="3" fill="#2b3343"/><circle cx="78" cy="62" r="15" fill="#1b2230" stroke="#cfe0f5" stroke-width="3"/><path d="M78 54v8l6 4" fill="none" stroke="#cfe0f5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const FOLDER_SVG=`<svg class="folder-ic" viewBox="0 0 104 84"><defs><linearGradient id="fb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4aa3ff"/><stop offset="1" stop-color="#1c62d6"/></linearGradient><linearGradient id="ff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5cb0ff"/><stop offset="1" stop-color="#2a74e8"/></linearGradient></defs>
 <path d="M6 10a6 6 0 0 1 6-6h24l8 8h48a6 6 0 0 1 6 6v54a6 6 0 0 1-6 6H12a6 6 0 0 1-6-6Z" fill="url(#fb)"/><rect x="12" y="16" width="80" height="22" rx="3" fill="#e8f1ff" opacity=".9"/>
 <path d="M4 28a6 6 0 0 1 6-6h84a6 6 0 0 1 6 6l-4 44a6 6 0 0 1-6 6H14a6 6 0 0 1-6-6Z" fill="url(#ff)"/><path d="M8 30h88" stroke="#fff" stroke-opacity=".25"/></svg>`;
@@ -184,19 +216,19 @@ function modal({title,text='',input=false,value='',ok='Salvar',danger=false,plac
  document.addEventListener('keydown',key,true);document.body.append(m);(inp||m.querySelector('[data-a=s]')).focus()})}
 function toast(t){const e=$(`<div class="toast glass">${esc(t)}</div>`);document.body.append(e);setTimeout(()=>e.remove(),2200)}
 
-const store=await createStore();window.__pastasStore=store;
-const root=document.getElementById('pastas');let cur=null;
+const store=await createStore();window.__pastasStore=store;if(store.kind==='local')store.ensureHistory();
+const root=document.getElementById('pastas');let cur=null,lastView=undefined;
 // v12: split view — left 80% folders/photos, right 20% "Fila de impressão"
 const main=$(`<div class="p-main"></div>`);const qp=$(`<aside class="p-queue" aria-label="Fila de impressão"></aside>`);
-const left=$(`<div class="p-left"></div>`);const chatEl=$(`<section class="chat glass" aria-label="Chat"></section>`);left.append(main,chatEl);root.append(left,qp);const closedNotes=new Set(JSON.parse(sessionStorage.getItem('raglan-notes-closed')||'[]'));const saveClosed=()=>sessionStorage.setItem('raglan-notes-closed',JSON.stringify([...closedNotes]));let drag=null;
+const left=$(`<div class="p-left"></div>`);const chatEl=$(`<section class="chat glass" aria-label="Chat"></section>`);left.append(main,chatEl);const ordEl=$(`<aside class="p-orders" aria-label="Pedidos dos clientes"></aside>`);root.append(ordEl,left,qp);const closedNotes=new Set(JSON.parse(sessionStorage.getItem('raglan-notes-closed')||'[]'));const saveClosed=()=>sessionStorage.setItem('raglan-notes-closed',JSON.stringify([...closedNotes]));let drag=null;
 const trash=document.getElementById('trash');
 
 function go(id){cur=id||null;location.hash=cur?'#/pastas/'+cur:'#/pastas'}
 function render(){
  if(cur&&!store.folder(cur))cur=null;
  const fa=document.activeElement,fid=fa?.dataset?.note,sel=fid?[fa.selectionStart,fa.selectionEnd]:null;const scroll=main.scrollTop;
- const path=store.path(cur);const c=store.counts(cur);
- const oldR=new Map();if(!tdrag&&!drag)main.querySelectorAll('.ph[data-photo]').forEach(el=>oldR.set(el.dataset.photo,el.getBoundingClientRect()));
+ const path=store.path(cur);const c=store.counts(cur);if(!cur)c.folders=store.folders(null).filter(f=>!f.isHistory&&!f.isOrder).length;
+ const oldR=new Map(),oldEl=new Map();if(!tdrag&&!drag)main.querySelectorAll('.ph[data-photo]').forEach(el=>{oldR.set(el.dataset.photo,el.getBoundingClientRect());oldEl.set(el.dataset.photo,el)});const sameView=lastView===cur;lastView=cur;const inHist=store.isHist(cur);
  main.innerHTML='';
  const head=$(`<div class="p-head">${cur?`<div class="p-back" title="Voltar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg></div>`:''}</div>`);
  const crumbs=[{id:null,name:'Minhas pastas'},...path];
@@ -206,16 +238,24 @@ function render(){
  head.querySelector('.p-back')?.addEventListener('click',()=>go(path.length>1?path[path.length-2].id:null));
  main.append(head);
  const grid=$(`<div class="p-grid"></div>`);main.append(grid);
- const nt=$(`<div class="new-wrap"><div class="new-tile" title="Nova pasta">${PLUS}</div><div class="nm">Nova pasta</div></div>`);nt.querySelector('.new-tile').onclick=newFolder;grid.append(nt);
- if(cur){const up=$(`<div class="new-wrap"><div class="up-tile" title="Enviar fotos">${UPLOAD}</div><div class="nm">Enviar fotos</div></div>`);up.querySelector('.up-tile').onclick=()=>fileIn.click();grid.append(up)}
- for(const f of store.folders(cur)){const n=store.counts(f.id);
-  const t=$(`<div class="tile" draggable="true" data-folder="${f.id}" title="${esc(f.name)}">${FOLDER_SVG}<div class="nm">${esc(f.name)}</div><div class="sub">${n.photos} foto${n.photos===1?'':'s'}${n.folders?` · ${n.folders} pasta${n.folders===1?'':'s'}`:''}</div></div>`);
+main.classList.toggle('in-hist',inHist);root.classList.toggle('at-root',!cur);/* v13: no Fila de impressão on the root screen */
+ if(!inHist){const nt=$(`<div class="new-wrap"><div class="new-tile" title="Nova pasta">${PLUS}</div><div class="nm">Nova pasta</div></div>`);nt.querySelector('.new-tile').onclick=newFolder;grid.append(nt);
+ if(cur&&!inHist){const up=$(`<div class="new-wrap"><div class="up-tile" title="Enviar fotos">${UPLOAD}</div><div class="nm">Enviar fotos</div></div>`);up.querySelector('.up-tile').onclick=()=>fileIn.click();grid.append(up)}}
+ if(inHist)grid.append($(`<div class="hist-note">${HIST_SVG}<div><b>Histórico</b><span>Fotos enviadas para a Fila de impressão. Arraste um item da fila de volta para a tela principal para restaurá-lo.</span></div></div>`));
+ const curF=store.folder(cur);
+ if(curF?.isOrder){head.append(Object.assign($(`<button class="zip-btn" title="Baixar todos os arquivos do pedido"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v3h16v-3"/></svg>Baixar tudo (.zip)</button>`),{onclick:()=>zipOrder(cur)}));
+  for(const fl of curF.files||[]){const t=$(`<div class="tile file-t" title="${esc(fl.name)}">${fl.name.endsWith('.csv')?CSV_IC:TXT_IC}<div class="nm">${esc(fl.name)}</div><div class="sub">${fl.name.endsWith('.csv')?'Planilha do pedido':'Informações'}</div></div>`);t.onclick=()=>viewFile(fl);grid.append(t)}}
+ renderOrders();
+ for(const f of [...store.folders(cur)].filter(f=>cur||!f.isOrder).sort((a,b)=>(b.isHistory?1:0)-(a.isHistory?1:0))){const n=store.counts(f.id);
+  if(f.isHistory){const t=$(`<div class="tile hist" data-folder="${f.id}" title="Histórico — fotos enviadas para a fila">${HIST_SVG}<div class="nm">Histórico</div><div class="sub">${n.photos} foto${n.photos===1?'':'s'}</div></div>`);t.onclick=()=>{if(!editing)go(f.id)};grid.append(t);continue}
+  const hn=store.hist(f.id)?store.photos(store.histId(f.id)).length:0;
+  const t=$(`<div class="tile" draggable="true" data-folder="${f.id}" title="${esc(f.name)}">${FOLDER_SVG}<div class="nm">${esc(f.name)}</div><div class="sub">${n.photos} foto${n.photos===1?'':'s'}${n.folders?` · ${n.folders} pasta${n.folders===1?'':'s'}`:''}${hn?`<br><small>${hn} no histórico</small>`:''}</div></div>`);
   t.onclick=()=>{if(!editing)go(f.id)};dragSource(t,{type:'folder',id:f.id});dropTarget(t,f.id);grid.append(t)}
  // v12: display-only grouping by technique (DTF, Bordado, Serigrafia, Sublimação, then none); newest first inside each group (groupedAt || createdAt)
  const gi=p=>{const on=techOf(p);const i=TECH.findIndex(t=>on.includes(t.k));return i<0?TECH.length:i};
  const tk=p=>p.groupedAt||p.createdAt||0;const sorted=store.photos(cur).map((p,i)=>({p,i,g:gi(p)})).sort((a,b)=>a.g-b.g||tk(b.p)-tk(a.p)||b.i-a.i);const anyG=sorted.some(x=>x.g<TECH.length);let lastG=-1;
  for(const {p,g} of sorted){const open=!closedNotes.has(p.id);const grpLbl=anyG&&g!==lastG?(g<TECH.length?`<span class="grp-lbl" style="--tc:${TECH[g].c}"><i></i>${TECH[g].n}</span>`:`<span class="grp-lbl none"><i></i>Sem técnica</span>`):'';lastG=g;
-  const e=$(`<div class="ph${grpLbl?' grp-start':''}" style="--gc:${g<TECH.length?TECH[g].c:'rgba(255,255,255,.18)'}" draggable="true" data-photo="${p.id}">${grpLbl}${techBar(p)}<div class="frame"><img alt="" src="${store.photoURL(p)}"></div><button class="plus${open?' open':''}${p.note?' has':''}" title="Anotações (clique duplo para ampliar)">+</button>${relBtn(p.id)}
+  const e=$(`<div class="ph${grpLbl?' grp-start':''}" style="--gc:${g<TECH.length?TECH[g].c:'rgba(255,255,255,.18)'}" draggable="true" data-photo="${p.id}">${grpLbl}${techBar(p)}<div class="frame"><img alt="" loading="lazy" decoding="async" src="${store.photoURL(p)}"></div><button class="plus${open?' open':''}${p.note?' has':''}" title="Anotações (clique duplo para ampliar)">+</button>${relBtn(p.id)}
    <div class="pnm" title="${esc(dispName(p))}">${esc(dispName(p))}</div><div class="note${open?' open':''}"><div class="nwrap"><div class="nback" aria-hidden="true"></div><textarea data-note="${p.id}" placeholder="Anotações sobre a foto…">${esc(p.note||'')}</textarea></div><div class="saved"></div></div></div>`);
   e.querySelector('.frame').onclick=()=>{if(!editing)lightbox(p.id)};
   const pl=e.querySelector('.plus'),nb=e.querySelector('.note'),ta=e.querySelector('textarea'),sv=e.querySelector('.saved');
@@ -235,22 +275,32 @@ function render(){
   const rb=e.querySelector('.rel');rb.onclick=ev=>{ev.stopPropagation();relOpen===p.id?closeRel():openRel(p.id)};rb.draggable=false;
   dragSource(e,{type:'photo',id:p.id});grid.append(e)}
  if(!cur&&!store.folders(null).length)grid.append($(`<div class="p-empty">Crie sua primeira pasta clicando em “+”.</div>`));
- if(cur&&!store.folders(cur).length&&!store.photos(cur).length)grid.append($(`<div class="p-empty">Pasta vazia. Envie fotos pelo botão ou arraste imagens do computador para cá.</div>`));
+ if(inHist&&!store.photos(cur).length)grid.append($(`<div class="p-empty">Nenhuma foto no histórico ainda.</div>`));
+ if(cur&&!inHist&&!store.counts(cur).folders&&!store.photos(cur).length)grid.append($(`<div class="p-empty">Pasta vazia. Envie fotos pelo botão ou arraste imagens do computador para cá.</div>`));
  // OS file drop
- grid.addEventListener('dragover',ev=>{if(cur&&!drag&&[...ev.dataTransfer.types].includes('Files')){ev.preventDefault();grid.classList.add('filedrop')}});
+ grid.addEventListener('dragover',ev=>{if(cur&&!inHist&&!drag&&[...ev.dataTransfer.types].includes('Files')){ev.preventDefault();grid.classList.add('filedrop')}});
  grid.addEventListener('dragleave',ev=>{if(!grid.contains(ev.relatedTarget))grid.classList.remove('filedrop')});
- grid.addEventListener('drop',ev=>{grid.classList.remove('filedrop');if(cur&&!drag&&ev.dataTransfer.files.length){ev.preventDefault();upload(ev.dataTransfer.files)}});
+ grid.addEventListener('drop',ev=>{grid.classList.remove('filedrop');if(cur&&!inHist&&!drag&&ev.dataTransfer.files.length){ev.preventDefault();upload(ev.dataTransfer.files)}});
  main.scrollTop=scroll;chatSync();
  // FLIP: animate cards from their previous position (e.g. when a technique toggle regroups them)
  if(oldR.size&&!matchMedia('(prefers-reduced-motion: reduce)').matches)main.querySelectorAll('.ph[data-photo]').forEach(el=>{const o=oldR.get(el.dataset.photo);if(!o)return;const n=el.getBoundingClientRect();const dx=o.left-n.left,dy=o.top-n.top;
   if(Math.abs(dx)>1||Math.abs(dy)>1)el.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:'none'}],{duration:420,easing:'cubic-bezier(.2,.8,.2,1)'})});
+ // v13: cards that left this view (e.g. sent to the queue -> Histórico) fly out instead of vanishing
+ if(sameView&&oldEl.size&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const qr=qp.getBoundingClientRect();
+  oldEl.forEach((el,id)=>{if(main.querySelector(`.ph[data-photo="${id}"]`))return;const r=oldR.get(id);const g=el.cloneNode(true);g.classList.add('leaving');Object.assign(g.style,{position:'fixed',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',margin:0,zIndex:60,pointerEvents:'none'});
+   document.body.append(g);const toQ=store.queued(id)&&qr.width>0;const dx=toQ?qr.left+qr.width/2-(r.left+r.width/2):0,dy=toQ?Math.min(qr.top+80,qr.bottom-40)-(r.top+r.height/2):-20;
+   g.animate([{transform:'none',opacity:1},{transform:`translate(${dx}px,${dy}px) scale(.25)`,opacity:0}],{duration:520,easing:'cubic-bezier(.4,0,.2,1)'}).onfinish=()=>g.remove()})}
  if(fid){const t=main.querySelector(`textarea[data-note="${fid}"]`);if(t){t.focus();t.setSelectionRange(...sel)}}}
 function dragSource(el,item){
  el.addEventListener('dragstart',ev=>{drag=item;ev.dataTransfer.effectAllowed='move';ev.dataTransfer.setData('text/plain',item.type+':'+item.id);el.classList.add('dragging');document.body.classList.add('dnd')});
  el.addEventListener('dragend',()=>{drag=null;qClear();el.classList.remove('dragging');document.body.classList.remove('dnd');document.querySelectorAll('.drop').forEach(x=>x.classList.remove('drop'));trash.classList.remove('hot')});
  touchDrag(el,item)}
-function canDrop(target){if(!drag||drag.type==='q')return false;if(drag.type==='folder')return target!==drag.id&&!(target&&store.isInside(drag.id,target))&&store.folder(drag.id)?.parentId!==target;return target!==null&&store.photo(drag.id)?.folderId!==target}
-async function doMove(d,target){try{if(d.type==='folder')await store.moveFolder(d.id,target);else await store.movePhoto(d.id,target);toast(`Movido para “${target?store.folder(target).name:'Minhas pastas'}”`)}catch(e){toast('Não foi possível mover')}}
+function canDrop(target){if(!drag)return false;
+ if(drag.type==='q'){if(target==='__here')return!!store.q.get(drag.id)&&!!store.restoreTarget(store.q.get(drag.id).photoId,cur);return target!==null&&store.f.has(target)&&!store.isHist(target)}
+ if(target==='__here'||store.isHist(target))return false;if(drag.type==='folder')return target!==drag.id&&!(target&&store.isInside(drag.id,target))&&store.folder(drag.id)?.parentId!==target;return target!==null&&store.photo(drag.id)?.folderId!==target}
+async function restoreQ(qid,target){const q=store.q.get(qid);if(!q)return;const p=store.photo(q.photoId);const dest=target==='__here'?store.restoreTarget(q.photoId,cur):target;
+ try{await store.restoreFromQueue(qid,dest&&p&&dest!==p.folderId?dest:(p&&dest===p.folderId?null:dest));toast(dest?`Restaurado em “${store.folder(dest)?.name||'pasta'}”`:'Removido da fila')}catch(e){console.warn(e);toast('Não foi possível restaurar')}}
+async function doMove(d,target){if(d.type==='q')return restoreQ(d.id,target);try{if(d.type==='folder')await store.moveFolder(d.id,target);else await store.movePhoto(d.id,target);toast(`Movido para “${target?store.folder(target).name:'Minhas pastas'}”`)}catch(e){toast('Não foi possível mover')}}
 async function doTrash(d){
  if(d.type==='q'){await store.dequeue(d.id);toast('Removido da fila');return}
  if(d.type==='folder'){const f=store.folder(d.id);const n=store.descendants(d.id).length,ph=[d.id,...store.descendants(d.id)].reduce((s,i)=>s+store.photos(i).length,0);
@@ -295,7 +345,7 @@ let editing=false,pendingRender=false,clip=null,hoverEl=null,lastTouch=0;
 function rerenderAll(){pendingRender=false;if(document.body.classList.contains('pastas-on')){render();renderQueue();renderRel();paintUnseen()}}
 const ctx=$(`<div class="ctx glass" role="menu" hidden></div>`);document.body.append(ctx);
 const MI={copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',paste:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 10h6M9 14h6"/>',
- ren:'<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',del:'<path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15"/>'};
+ ren:'<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',del:'<path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15"/>',open:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="m10 11 3 2-3 2"/>'};
 function showMenu(items,x,y){ctx.innerHTML='';for(const it of items){const b=$(`<button role="menuitem"${it.dis?' disabled':''} class="${it.danger?'dan':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${MI[it.ic]}</svg>${esc(it.label)}</button>`);
   b.onclick=()=>{closeCtx();if(!it.dis)it.act()};ctx.append(b)}
  ctx.hidden=false;const W=ctx.offsetWidth,H=ctx.offsetHeight;ctx.style.left=Math.max(6,Math.min(x,innerWidth-W-8))+'px';ctx.style.top=Math.max(6,Math.min(y,innerHeight-H-8))+'px'}
@@ -307,11 +357,12 @@ function itemAt(el){let x;if(!el||!el.closest)return null;if(el.closest('input,t
  if(x=el.closest('.c-msg'))return{type:'msg',id:x.dataset.m};if(el.closest('.chat'))return null;
  if(x=el.closest('.rp-it[data-r]'))return{type:'related',id:x.dataset.r};if(el.closest('.rp'))return{type:'rspace'};
  if(x=el.closest('.q-row'))return{type:'q',id:x.dataset.q};if(el.closest('.p-queue'))return{type:'qspace'};
- if(x=el.closest('.tile[data-folder]'))return{type:'folder',id:x.dataset.folder};if(x=el.closest('.ph[data-photo]'))return{type:'photo',id:x.dataset.photo};
+ if(x=el.closest('.tile.hist[data-folder]'))return{type:'hist',id:x.dataset.folder};if(x=el.closest('.tile[data-folder]'))return{type:'folder',id:x.dataset.folder};if(x=el.closest('.ph[data-photo]'))return{type:'photo',id:x.dataset.photo};
  if(el.closest('.p-main'))return{type:'space'};return null}
 const canPasteFP=()=>clip&&(clip.type==='folder'||clip.type==='photo');
 function openMenuFor(it,x,y){if(!it)return;const C={label:'Copiar',ic:'copy',act:()=>copyItem(it)},items=[];
- if(it.type==='folder'){items.push(C,{label:'Colar aqui',ic:'paste',dis:!canPasteFP(),act:()=>pasteInto(it.id)},{label:'Renomear',ic:'ren',act:()=>renameItem(it)},{label:'Excluir',ic:'del',danger:true,act:()=>doTrash(it)})}
+ if(it.type==='hist')items.push({label:'Abrir',ic:'open',act:()=>go(it.id)});
+ else if(it.type==='folder'){items.push(C,{label:'Colar aqui',ic:'paste',dis:!canPasteFP(),act:()=>pasteInto(it.id)},{label:'Renomear',ic:'ren',act:()=>renameItem(it)},{label:'Excluir',ic:'del',danger:true,act:()=>doTrash(it)})}
  else if(it.type==='photo'){items.push(C);if(clip?.type==='related')items.push({label:'Colar como relacionada',ic:'paste',act:()=>pasteRelated(it.id)});else items.push({label:'Colar',ic:'paste',dis:!canPasteFP(),act:()=>pasteInto(cur)});
   items.push({label:'Renomear',ic:'ren',act:()=>renameItem(it)},{label:'Excluir',ic:'del',danger:true,act:()=>doTrash(it)})}
  else if(it.type==='related')items.push(C,{label:'Colar',ic:'paste',dis:clip?.type!=='related',act:()=>pasteRelated(relOpen)},{label:'Renomear',ic:'ren',act:()=>renameItem(it)},{label:'Excluir',ic:'del',danger:true,act:()=>delRelated(it.id)});
@@ -338,7 +389,7 @@ document.addEventListener('keydown',async e=>{if(!document.body.classList.contai
   else pasteInto(it?.type==='folder'?it.id:cur)}});
 function copyItem(it){if(!['folder','photo','related','q'].includes(it.type))return;clip={type:it.type,id:it.id};toast('Copiado — use “Colar”')}
 function uniqueName(name,taken){if(!taken.includes(name))return name;let n=name+' (cópia)',i=2;while(taken.includes(n))n=`${name} (cópia ${i++})`;return n}
-function snapTree(id){return{f:{...store.folder(id)},photos:store.photos(id).map(p=>({p:{...p},rel:store.related(p.id).map(r=>({...r}))})),subs:store.folders(id).map(c=>snapTree(c.id))}}
+function snapTree(id){return{f:{...store.folder(id)},photos:store.photos(id).map(p=>({p:{...p},rel:store.related(p.id).map(r=>({...r}))})),subs:store.folders(id).filter(c=>!c.isHistory).map(c=>snapTree(c.id))}}/* v13: a folder copy does not copy its Histórico content (the copy gets its own empty Histórico) */
 async function dupFolderTree(t,parentId,top){const name=top?uniqueName(t.f.name,store.folders(parentId).map(x=>x.name)):t.f.name;const nf=await store.createFolder(name,parentId);
  for(const x of t.photos)await dupPhotoDeep(x,nf.id,false);for(const sub of t.subs)await dupFolderTree(sub,nf.id,false);return nf}
 async function dupPhotoDeep(x,folderId,check){const want=dispName(x.p);const nm=check?uniqueName(want,store.photos(folderId).map(dispName)):want;
@@ -346,7 +397,7 @@ async function dupPhotoDeep(x,folderId,check){const want=dispName(x.p);const nm=
 let pasting=false;
 async function busy(label,fn){if(pasting)return toast('Aguarde, colando…');pasting=true;const t=$(`<div class="toast glass">${esc(label)}</div>`);document.body.append(t);
  try{await fn()}catch(e){console.warn(e);toast('Não foi possível colar')}finally{pasting=false;t.remove()}}
-async function pasteInto(folderId){if(!clip)return;
+async function pasteInto(folderId){if(!clip)return;if(store.isHist(folderId))folderId=store.folder(folderId).parentId;
  if(clip.type==='folder'){if(!store.folder(clip.id))return toast('O item copiado não existe mais');const tree=snapTree(clip.id);await busy('Colando pasta…',async()=>{await dupFolderTree(tree,folderId??null,true);toast('Pasta colada')})}
  else if(clip.type==='photo'){const p=store.photo(clip.id);if(!p)return toast('O item copiado não existe mais');if(!folderId)return toast('Abra uma pasta para colar fotos');
   const x={p:{...p},rel:store.related(p.id).map(r=>({...r}))};await busy('Colando foto…',async()=>{await dupPhotoDeep(x,folderId,true);toast('Foto colada')})}
@@ -354,7 +405,7 @@ async function pasteInto(folderId){if(!clip)return;
 async function pasteRelated(pid){if(clip?.type!=='related'||!pid)return;const r=store.r.get(clip.id);if(!r)return toast('O item copiado não existe mais');
  const nm=uniqueName(relName(r),store.related(pid).map(relName));await busy('Colando…',async()=>{await store.dupRelated({...r},pid,nm!==relName(r)||r.title?nm:undefined);toast('Foto relacionada colada')})}
 async function pasteQueue(afterId){if(clip?.type!=='q')return;const src=store.q.get(clip.id);if(!src||!store.photo(src.photoId))return toast('O item copiado não existe mais');
- const items=store.queue();const i=afterId?items.findIndex(x=>x.id===afterId):items.length-1;const a=items[i]?.order,b=items[i+1]?.order;const order=a==null?(b==null?1:b-1):b==null?a+1:(a+b)/2;
+ const items=store.queueIn(cur);const i=afterId?items.findIndex(x=>x.id===afterId):items.length-1;const a=items[i]?.order,b=items[i+1]?.order;const order=a==null?(b==null?1:b-1):b==null?a+1:(a+b)/2;
  await store.enqueue(src.photoId,order);toast('Item duplicado na fila')}
 async function delRelated(id){if(await modal({title:'Excluir foto relacionada?',text:'Esta foto/arquivo relacionado será excluído. Esta ação não pode ser desfeita.',ok:'Excluir',danger:true})){await store.deleteRelated(id);toast('Excluído')}}
 async function delQueue(id){if(await modal({title:'Remover da fila?',text:'O item sai da Fila de impressão. A foto continua na pasta.',ok:'Remover',danger:true})){await store.dequeue(id);toast('Removido da fila')}}
@@ -384,7 +435,7 @@ const cList=chatEl.querySelector('.c-list'),cIn=chatEl.querySelector('.c-in'),cM
 const cKey=matchMedia('(max-width:900px)').matches?'raglan-chat-collapsed-m':'raglan-chat-collapsed';
 chatEl.classList.toggle('collapsed',(localStorage.getItem(cKey)??(matchMedia('(max-width:900px)').matches?'1':'0'))==='1');
 let unread=0;
-function setCollapsed(c){chatEl.classList.toggle('collapsed',c);localStorage.setItem(cKey,c?'1':'0');if(!c){unread=0;cBadge.hidden=true;cList.scrollTop=cList.scrollHeight;cIn.focus({preventScroll:true})}}
+function setCollapsed(c){chatEl.classList.toggle('collapsed',c);if(!c&&matchMedia('(max-width:900px)').matches)qp.classList.add('collapsed');/* v13: phone drawers are exclusive */localStorage.setItem(cKey,c?'1':'0');if(!c){unread=0;cBadge.hidden=true;cList.scrollTop=cList.scrollHeight;cIn.focus({preventScroll:true})}}
 chatEl.querySelector('.c-head').onclick=e=>{if(e.target.closest('.c-me'))return;setCollapsed(!chatEl.classList.contains('collapsed'))};
 chatEl.querySelector('.c-head').onkeydown=e=>{if(e.key==='Enter'&&e.target===e.currentTarget)setCollapsed(!chatEl.classList.contains('collapsed'))};
 function meName(){return localStorage.getItem(CHAT_ME_KEY)||''}
@@ -452,7 +503,7 @@ function ackNoteLine(id,ta){const i=ta.value.slice(0,ta.selectionStart).split('\
 function paintUnseen(){const inF=new Set();const up=fid=>{let c=store.f.get(fid);while(c&&!inF.has(c.id)){inF.add(c.id);c=store.f.get(c.parentId)}};
  for(const p of store.p.values())if(anyU(p))up(p.folderId);for(const r of store.r.values())if(anyU(r)){const p=store.p.get(r.parentId);if(p)up(p.folderId)}
  for(const f of store.f.values())if(anyU(f))up(f.parentId);
- main.querySelectorAll('.tile[data-folder]').forEach(el=>{const f=store.f.get(el.dataset.folder);const a=U(f,'self'),b=U(f,'name');el.classList.toggle('unseen',a);el.querySelector('.nm')?.classList.toggle('unseen',b);el.classList.toggle('unseen-in',!a&&!b&&inF.has(el.dataset.folder))});
+ root.querySelectorAll('.tile[data-folder]').forEach(el=>{const f=store.f.get(el.dataset.folder);const a=U(f,'self'),b=U(f,'name');el.classList.toggle('unseen',a);el.querySelector('.nm')?.classList.toggle('unseen',b);el.classList.toggle('unseen-in',!a&&!b&&inF.has(el.dataset.folder))});
  main.querySelectorAll('.ph[data-photo]').forEach(el=>{const id=el.dataset.photo,p=store.p.get(id);
   el.querySelector('.frame')?.classList.toggle('unseen',U(p,'image'));el.querySelector('.pnm')?.classList.toggle('unseen',U(p,'title'));
   el.querySelectorAll('.tech button').forEach(b=>b.classList.toggle('unseen',U(p,'tech_'+b.dataset.t)));
@@ -478,6 +529,33 @@ const TECH=[
  {k:'sublimacao',n:'Sublimação',c:'#facc15',f:'#1f1a05',i:TI('<path d="M12 3v3"/><path d="M8.5 3h7"/><rect x="4" y="6" width="16" height="3.5" rx="1"/><path d="M3 20.5h18"/><path d="M7.5 18c-1-1 1-2 0-3.2M12 18c-1-1 1-2 0-3.2M16.5 18c-1-1 1-2 0-3.2"/>')}];
 const techOf=p=>Array.isArray(p.techniques)?p.techniques:[];
 function techBar(p){const on=techOf(p);return`<div class="tech" role="group" aria-label="Técnica">${TECH.map(t=>`<button class="${on.includes(t.k)?'on':''}" data-t="${t.k}" title="${t.n}" aria-label="${t.n}" aria-pressed="${on.includes(t.k)}" style="--tc:${t.c};--tf:${t.f||'#fff'}">${t.i}</button>`).join('')}</div>`}
+const fName=id=>{const f=store.folder(id);if(!f)return'—';if(f.isHistory){const pa=store.folder(f.parentId);return(pa?pa.name+' › ':'')+'Histórico'}return f.name};
+// ---------- v13: client orders (root right half, order folder files, zip) ----------
+const CSV_IC=`<svg class="folder-ic file-ic" viewBox="0 0 104 84"><rect x="26" y="4" width="52" height="72" rx="7" fill="#1f7a46"/><path d="M62 4v16h16" fill="#2fa865"/><rect x="34" y="30" width="36" height="34" rx="2" fill="none" stroke="#d7f5e3" stroke-width="3"/><path d="M34 41h36M34 52h36M46 30v34M58 30v34" stroke="#d7f5e3" stroke-width="2.4"/></svg>`;
+const TXT_IC=`<svg class="folder-ic file-ic" viewBox="0 0 104 84"><rect x="26" y="4" width="52" height="72" rx="7" fill="#3a4659"/><path d="M62 4v16h16" fill="#56647a"/><path d="M36 34h32M36 44h32M36 54h22" stroke="#dfe6f0" stroke-width="3.2" stroke-linecap="round"/></svg>`;
+const ORD_SVG=`<svg class="folder-ic ord-ic" viewBox="0 0 104 84"><defs><linearGradient id="ob" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb547"/><stop offset="1" stop-color="#e07a12"/></linearGradient></defs><path d="M6 14a6 6 0 0 1 6-6h24l8 8h48a6 6 0 0 1 6 6v50a6 6 0 0 1-6 6H12a6 6 0 0 1-6-6Z" fill="url(#ob)"/><rect x="34" y="30" width="36" height="40" rx="5" fill="#fff6e8"/><rect x="43" y="26" width="18" height="8" rx="3" fill="#7a3f00"/><path d="M41 44h22M41 52h22M41 60h14" stroke="#c46a0c" stroke-width="3" stroke-linecap="round"/></svg>`;
+const fmtDT=t=>{const d=new Date(t),z=n=>String(n).padStart(2,'0');return`${z(d.getDate())}/${z(d.getMonth()+1)}/${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}`};
+function renderOrders(){if(cur){ordEl.innerHTML='';return}const list=store.folders(null).filter(f=>f.isOrder).sort((a,b)=>b.createdAt-a.createdAt);
+ ordEl.innerHTML=`<div class="q-head"><h2>Pedidos dos clientes</h2><span class="q-n">${list.length} pedido${list.length===1?'':'s'}</span></div><div class="o-grid"></div>${list.length?'':'<div class="q-empty">Nenhum pedido ainda. Os pedidos enviados pelos clientes no Mockup aparecem aqui.</div>'}`;
+ const g=ordEl.querySelector('.o-grid');for(const f of list){const n=store.counts(f.id);const t=$(`<div class="tile order" draggable="true" data-folder="${f.id}" title="${esc(f.name)}">${ORD_SVG}<div class="nm">${esc(f.name)}</div><div class="sub">${fmtDT(f.createdAt)} · ${n.photos} foto${n.photos===1?'':'s'}</div></div>`);
+  t.onclick=()=>{if(!editing)go(f.id)};dragSource(t,{type:'folder',id:f.id});dropTarget(t,f.id);g.append(t)}}
+function parseCSV(t){t=t.replace(/^\ufeff/,'');const rows=[];let row=[],c='',q=false;for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++}else q=false}else c+=ch}else if(ch==='"')q=true;else if(ch===';'||ch===','&&!t.includes(';')){row.push(c);c=''}else if(ch==='\n'){row.push(c.replace(/\r$/,''));rows.push(row);row=[];c=''}else c+=ch}
+ if(c||row.length){row.push(c.replace(/\r$/,''));rows.push(row)}return rows}
+function dlBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
+function viewFile(fl){const isCsv=fl.name.endsWith('.csv');let body;if(isCsv){const r=parseCSV(fl.text||'');body=`<div class="fv-scroll"><table class="fv-t"><thead><tr>${(r[0]||[]).map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${r.slice(1).map(x=>`<tr>${x.map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="9">Sem linhas preenchidas</td></tr>'}</tbody></table></div>`}
+ else body=`<pre class="fv-pre">${esc(fl.text||'')}</pre>`;
+ const m=$(`<div class="m-back"><div class="modal glass fv" role="dialog"><div class="fv-h"><h3>${esc(fl.name)}</h3><button class="nov-x" title="Fechar">×</button></div>${body}<div class="m-btns"><button class="m-btn" data-a="c">Fechar</button><button class="m-btn pri" data-a="s">Baixar</button></div></div></div>`);
+ const close=()=>{m.remove();removeEventListener('keydown',k,true)};const k=e=>{if(e.key==='Escape'){e.stopPropagation();close()}};addEventListener('keydown',k,true);
+ m.onclick=e=>{if(e.target===m)close()};m.querySelector('.nov-x').onclick=close;m.querySelector('[data-a=c]').onclick=close;
+ m.querySelector('[data-a=s]').onclick=()=>dlBlob(new Blob([(isCsv&&!fl.text.startsWith('\ufeff')?'\ufeff':'')+fl.text],{type:(fl.mime||'text/plain')+';charset=utf-8'}),fl.name);document.body.append(m)}
+async function zipOrder(fid){const f=store.folder(fid);if(!f)return;const t=$(`<div class="toast glass">Preparando .zip…</div>`);document.body.append(t);
+ try{const {default:JSZip}=await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');const z=new JSZip();const base=f.name.replace(/[\\/:*?"<>|]+/g,'-');const root=z.folder(base);const used=new Set();
+  const uname=n=>{let x=n,i=2;while(used.has(x)){x=n.replace(/(\.[^.]+)?$/,m=>` (${i++})${m}`)}used.add(x);return x};
+  for(const fl of f.files||[])root.file(uname(fl.name),(fl.name.endsWith('.csv')&&!fl.text.startsWith('\ufeff')?'\ufeff':'')+fl.text);
+  const phs=[...store.photos(fid),...(store.hist(fid)?store.photos(store.histId(fid)):[])];
+  for(const p of phs){const u=await store.fullURL(p);if(!u)continue;const b=await (await fetch(u)).blob();let n=p.name||dispName(p);if(!/\.[a-z0-9]{2,5}$/i.test(n))n+=b.type==='image/png'?'.png':'.jpg';root.file(uname(n),b)}
+  dlBlob(await z.generateAsync({type:'blob'}),base+'.zip')}catch(e){console.warn(e);toast('Não foi possível gerar o .zip')}finally{t.remove()}}
+window.__orders={zipOrder,viewFile,parseCSV};
 function techTags(p){const on=techOf(p);return TECH.filter(t=>on.includes(t.k)).map(t=>`<i class="q-tag" title="${t.n}" style="--tc:${t.c};--tf:${t.f||'#fff'}">${t.i}</i>`).join('')}
 
 // ---------- v12: related photos (popover anchored to the photo card) ----------
@@ -545,13 +623,13 @@ function stOpen(btn,id){if(stFor===id&&!stDD.hidden)return stClose();stFor=id;co
 document.addEventListener('pointerdown',e=>{if(!stDD.hidden&&!stDD.contains(e.target)&&!e.target.closest('.q-st'))stClose()},true);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!stDD.hidden)stClose()});
 addEventListener('resize',()=>stDD.hidden||stClose());
-function renderQueue(){const items=store.queue();const sc=qp.querySelector('.q-list')?.scrollTop||0;
+function renderQueue(){const items=store.queueIn(cur);const sc=qp.querySelector('.q-list')?.scrollTop||0;
  qp.innerHTML=`<div class="q-head"><h2>Fila de impressão</h2><span class="q-n">${items.length} ${items.length===1?'item':'itens'}</span><span class="q-chev"></span></div>
  <div class="q-body"><div class="q-cols"><span>Nome</span><span>Status</span></div><div class="q-list">${items.map((x,i)=>{const p=store.photo(x.photoId);const f=store.folder(p.folderId);
-  return`<div class="q-row${qSel===x.id?' sel':''}" draggable="true" data-q="${x.id}" title="${esc(dispName(p))}${p.note?'\n'+esc(p.note):''}"><span class="q-i">${i+1}</span><img class="q-th" src="${store.photoURL(p)}" alt=""><div class="q-tx"><div class="q-nm">${esc(dispName(p))}</div><div class="q-sub">${techTags(p)}<span>${esc(f?f.name:'—')}</span></div><div class="q-dt">${fmtD(x.addedAt)}</div></div>${stBtn(x)}<button class="q-x" title="Remover da fila">×</button></div>`}).join('')}</div>
+  return`<div class="q-row${qSel===x.id?' sel':''}" draggable="true" data-q="${x.id}" title="${esc(dispName(p))}${p.note?'\n'+esc(p.note):''}"><span class="q-i">${i+1}</span><img class="q-th" loading="lazy" decoding="async" src="${store.photoURL(p)}" alt=""><div class="q-tx"><div class="q-nm">${esc(dispName(p))}</div><div class="q-sub">${techTags(p)}<span>${esc(fName(p.folderId))}</span></div><div class="q-dt">${fmtD(x.addedAt)}</div></div>${stBtn(x)}<button class="q-x" title="Remover da fila">×</button></div>`}).join('')}</div>
  <div class="q-empty${items.length?' hide':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>Arraste fotos para cá para adicioná-las à fila${matchMedia('(pointer:coarse)').matches?' (toque e segure a foto)':''}.</div></div>`;
  qp.querySelector('.q-list').scrollTop=sc;if(stFor&&!store.q.get(stFor))stClose();
- qp.querySelector('.q-head').onclick=()=>{if(qMobile())qp.classList.toggle('collapsed')};
+ qp.querySelector('.q-head').onclick=()=>{if(qMobile()){qp.classList.toggle('collapsed');if(!qp.classList.contains('collapsed')&&!chatEl.classList.contains('collapsed'))chatEl.classList.add('collapsed')}};
  qp.querySelectorAll('.q-row').forEach(row=>{const x=store.q.get(row.dataset.q);
   row.onclick=e=>{if(e.target.closest('.q-x,.q-st')||editing)return;qSel=qSel===x.id?null:x.id;qp.querySelectorAll('.q-row').forEach(r=>r.classList.toggle('sel',r.dataset.q===qSel))};
   row.ondblclick=()=>lightbox(x.photoId);
@@ -561,15 +639,16 @@ function renderQueue(){const items=store.queue();const sc=qp.querySelector('.q-l
 function qClear(){qp.classList.remove('q-hot');qp.querySelectorAll('.q-ins,.q-ins-end').forEach(x=>x.classList.remove('q-ins','q-ins-end'))}
 function qBefore(y){for(const r of qp.querySelectorAll('.q-row')){const b=r.getBoundingClientRect();if(y<b.top+b.height/2)return r}return null}
 function qMark(y){qClear();qp.classList.add('q-hot');const r=qBefore(y);if(r)r.classList.add('q-ins');else qp.querySelector('.q-list')?.classList.add('q-ins-end')}
-async function qDrop(item,y){const before=qBefore(y);const items=store.queue();const bi=before?items.findIndex(x=>x.id===before.dataset.q):items.length;
+async function qDrop(item,y){const before=qBefore(y);const items=store.queueIn(cur);const bi=before?items.findIndex(x=>x.id===before.dataset.q):items.length;
  const list=item.type==='q'?items.filter(x=>x.id!==item.id):items;const idx=item.type==='q'?list.findIndex(x=>x.id===before?.dataset.q):bi;const at=idx<0?list.length:idx;
  const prev=list[at-1]?.order,next=list[at]?.order;const order=prev==null&&next==null?1:prev==null?next-1:next==null?prev+1:(prev+next)/2;
- try{if(item.type==='photo'){if(store.queued(item.id))return toast('Esta foto já está na fila');await store.enqueue(item.id,order);toast('Adicionado à fila de impressão')}
+ try{if(item.type==='photo'){if(store.queued(item.id))return toast('Esta foto já está na fila');await store.toQueue(item.id,order);toast('Adicionado à fila de impressão')}
   else if(item.type==='q'&&before?.dataset.q!==item.id)await store.reorderQueue(item.id,order)}catch(e){console.warn(e);toast('Não foi possível atualizar a fila')}}
 qp.addEventListener('dragover',e=>{if(drag&&(drag.type==='photo'||drag.type==='q')){e.preventDefault();e.dataTransfer.dropEffect='move';qMark(e.clientY)}});
 qp.addEventListener('dragleave',e=>{if(!qp.contains(e.relatedTarget))qClear()});
 qp.addEventListener('drop',e=>{const d=drag;qClear();if(!d||(d.type!=='photo'&&d.type!=='q'))return;e.preventDefault();e.stopPropagation();drag=null;qDrop(d,e.clientY)});
 window.__pastasQueue={qDrop};
+dropTarget(main,'__here');
 store.onChange(k=>{if(k==='note')return;if(editing){pendingRender=true;return}if(document.body.classList.contains('pastas-on')){render();renderQueue();renderRel();paintUnseen()}});
 
 // ---------- tab routing (hash) ----------
@@ -578,3 +657,8 @@ function route(){const h=location.hash;const on=h.startsWith('#/pastas');documen
  if(on){cur=h.split('/')[2]||null;render();renderQueue();renderRel();paintUnseen()}else{closeRel();dispatchEvent(new Event('resize'))}}
 document.querySelectorAll('.ttab').forEach(t=>t.onclick=()=>{location.hash=t.dataset.tab==='pastas'?(cur?'#/pastas/'+cur:'#/pastas'):'#/mockup'});
 addEventListener('hashchange',route);route();
+
+// ---------- v13: phones — queue drawer height for the chat offset, on-screen keyboard (visualViewport) ----------
+{const de=document.documentElement;const setQ=()=>{const r=qp.getBoundingClientRect();de.style.setProperty('--qh',(getComputedStyle(qp).display==='none'?0:Math.round(r.height))+'px')};if(window.ResizeObserver)new ResizeObserver(setQ).observe(qp);setQ();store.onChange(()=>requestAnimationFrame(setQ));addEventListener('hashchange',()=>requestAnimationFrame(setQ));
+ const vv=window.visualViewport;if(vv){const kb=()=>{const h=Math.max(0,innerHeight-vv.height-vv.offsetTop);const open=h>80&&matchMedia('(max-width:900px)').matches;de.style.setProperty('--kb',h+'px');document.body.classList.toggle('kb-open',open);
+   if(open){const a=document.activeElement;if(a&&a.matches('textarea,input')&&!a.closest('.chat'))setTimeout(()=>a.scrollIntoView({block:'center',behavior:'smooth'}),60)}};vv.addEventListener('resize',kb,{passive:true});vv.addEventListener('scroll',kb,{passive:true})}}

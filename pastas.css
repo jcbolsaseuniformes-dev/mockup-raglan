@@ -6,9 +6,9 @@
 .ttab:hover{background:rgba(255,255,255,.06)}
 .ttab.sel{background:linear-gradient(180deg,#2f8cff,#1767e6);color:#fff;box-shadow:0 0 14px rgba(40,130,255,.45)}
 .ttab svg{width:16px;height:16px}
-.app{height:calc(100vh - 54px)!important;padding-top:4px!important}
+.app{height:calc(100vh - 54px)!important;height:calc(100dvh - 54px)!important;padding-top:4px!important}
 body.pastas-on .app{display:none!important}
-#pastas{display:none;height:calc(100vh - 54px);overflow:auto;position:relative}
+#pastas{display:none;height:calc(100vh - 54px);height:calc(100dvh - 54px);overflow:auto;position:relative}
 body.pastas-on #pastas{display:flex}
 #pastas{overflow:hidden}
 /* ===== Pastas ===== */
@@ -86,7 +86,7 @@ body.dnd #trash{color:#cfd6e0;border-color:rgba(255,255,255,.25)}
  .topbar{padding:0 10px;gap:6px;height:54px}
  .topbar .brand{font-size:13px;margin-right:4px}
  .ttab{padding:9px 14px;min-height:40px}
- #pastas{height:auto;min-height:calc(100vh - 54px);overflow:visible}
+ #pastas{height:auto;min-height:calc(100vh - 54px);min-height:calc(100dvh - 54px);overflow:visible}
  .p-head{padding:10px 14px 0;flex-wrap:wrap;row-gap:4px}
  .p-info{width:100%;margin-left:0;order:9}
  .crumb{min-height:36px}
@@ -361,3 +361,102 @@ body.pastas-on .toast{bottom:196px}
 .nov-ta:focus{border-color:#5aa6ff;box-shadow:0 0 0 3px rgba(47,140,255,.2)}
 .nov-plus{position:absolute;left:50%;bottom:-17px;transform:translateX(-50%) rotate(45deg);width:34px;height:34px;border-radius:50%;border:2px solid #0f1520;background:linear-gradient(180deg,#2f8cff,#1767e6);color:#fff;font-size:22px;line-height:1;cursor:pointer;padding:0;box-shadow:0 0 12px rgba(40,130,255,.7);display:flex;align-items:center;justify-content:center}
 @media (max-width:600px){.nov-p{inset:min(3cm,4vw);bottom:calc(min(3cm,4vw) + 14px + env(safe-area-inset-bottom));padding:12px 12px 28px}.nov-ta{font-size:16px}.nov-h img{width:42px;height:42px}}
+/* v13: Histórico */
+.tile.hist{cursor:pointer}
+.tile.hist .nm{color:#cfd8e6}
+.tile.hist .hist-ic{filter:drop-shadow(0 6px 10px rgba(0,0,0,.35))}
+.tile .sub small{font-size:10.5px;color:#7f8ba0}
+.hist-note{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:#9aa6b8;font-size:12.5px;line-height:1.4}
+.hist-note svg{width:46px;height:auto;flex:none}
+.hist-note b{display:block;color:#e8edf5;font-size:14px}
+.p-main.drop{outline:2px dashed rgba(90,166,255,.7);outline-offset:-8px;border-radius:14px;background:rgba(47,140,255,.05)}
+.ph.leaving{transition:none}
+/* v13: client view (Mockup only) + team password gate */
+body.client .ttabs,body.client .lock-btn,body:not(.team) .lock-btn{display:none!important}
+.lock-btn{margin-left:auto;display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#aab6c8;font:600 12.5px Nunito,sans-serif;cursor:pointer}
+.lock-btn svg{width:15px;height:15px}.lock-btn:hover{color:#fff;border-color:rgba(255,120,120,.5);background:rgba(255,80,80,.12)}
+body.locked .app,body.locked #pastas{visibility:hidden}
+.gate{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:16px;background:radial-gradient(ellipse at center,rgba(0,0,0,.5) 0%,rgba(0,0,0,.85) 100%);animation:fade .15s}
+.gate-box{width:min(360px,100%);padding:24px 22px 18px;border-radius:16px;text-align:center;animation:pop .18s ease}
+.gate-ic{width:52px;height:52px;margin:0 auto 10px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(47,140,255,.15);border:1px solid rgba(90,166,255,.45);color:#7db8ff}
+.gate-ic svg{width:24px;height:24px}
+.gate-box h3{margin:0 0 4px;font-size:18px;color:#f2f5fa}.gate-box p{margin:0 0 14px;font-size:13px;color:#9aa6b8}
+.gate-box input{width:100%;height:44px;border-radius:10px;border:1px solid rgba(90,166,255,.35);background:rgba(10,15,24,.85);color:#eef2f8;font:16px Nunito,sans-serif;padding:0 14px;outline:none}
+.gate-box input:focus{border-color:#5aa6ff;box-shadow:0 0 0 3px rgba(47,140,255,.2)}
+.gate-err{margin-top:8px;color:#ff8a8a;font-size:12.5px}
+.gate-act{display:flex;gap:8px;margin-top:14px}
+.gate-act button{flex:1;height:42px;border-radius:10px;font:700 14px Nunito,sans-serif;cursor:pointer;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#cfd6e0}
+.gate-act .gate-ok{border-color:#4aa0ff;background:linear-gradient(180deg,#2b8bff,#1462e0);color:#fff;box-shadow:0 0 18px rgba(30,120,255,.45)}
+.gate-box.shake{animation:shake .35s}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+/* v13: root screen = full width (queue only inside folders) */
+#pastas.at-root .p-queue{display:none!important}
+#pastas.at-root .p-left{flex:1 1 100%;width:100%}
+/* v13: client order modal */
+.ord-box h3{margin-top:6px}
+.ord-spin{width:34px;height:34px;margin:0 auto 6px;border-radius:50%;border:3px solid rgba(90,166,255,.25);border-top-color:#5aa6ff;animation:spin .8s linear infinite}
+.ord-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:6px}.ord-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2b8bff,#5aa6ff);transition:width .3s}
+.ord-ok{width:52px;height:52px;margin:0 auto 8px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.55);color:#4ade80}.ord-ok svg{width:26px;height:26px}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* v13: root split — team folders (left) | Pedidos dos clientes (right) */
+.p-orders{display:none}
+#pastas.at-root .p-orders{display:flex;flex-direction:column;order:2;flex:0 0 50%;width:50%;min-width:0;height:100%;
+ background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.03));border-left:1px solid rgba(255,255,255,.11);box-shadow:inset 1px 0 0 rgba(0,0,0,.35)}
+#pastas.at-root .p-left{flex:0 0 50%;width:50%}
+.p-orders .o-grid{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:18px 12px;padding:16px 14px 24px;align-content:start}
+.p-orders .q-empty{margin:16px}
+.tile.order .sub{font-size:11px}
+.zip-btn{margin-left:10px;display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:9px;border:1px solid #4aa0ff;background:linear-gradient(180deg,#2b8bff,#1462e0);color:#fff;font:700 12.5px Nunito,sans-serif;cursor:pointer;box-shadow:0 0 12px rgba(30,120,255,.35);white-space:nowrap}
+.zip-btn svg{width:15px;height:15px}
+.tile.file-t{cursor:pointer}
+.modal.fv{width:min(860px,calc(100vw - 32px));max-height:calc(100dvh - 48px);display:flex;flex-direction:column}
+.fv-h{display:flex;align-items:center;gap:10px}.fv-h h3{margin:0;flex:1}
+.fv-scroll{overflow:auto;margin-top:12px;border-radius:10px;border:1px solid rgba(255,255,255,.08);max-height:60dvh}
+.fv-t{width:100%;border-collapse:collapse;font-size:13px}.fv-t th,.fv-t td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.06);text-align:left;white-space:nowrap}.fv-t th{position:sticky;top:0;background:#1a2130;color:#e8edf5}
+.fv-pre{margin:12px 0 0;padding:12px 14px;border-radius:10px;background:rgba(10,15,24,.85);border:1px solid rgba(255,255,255,.08);color:#e2e8f0;font:13px/1.55 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;max-height:60dvh;overflow:auto}
+@media (max-width:900px){
+ #pastas.at-root .p-orders{width:auto;height:auto;margin:6px 10px 4px;border:1px solid rgba(255,255,255,.1);border-radius:16px}
+ #pastas.at-root .p-left{width:auto}
+ .p-orders .o-grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));max-height:none;overflow:visible}
+}
+/* ===== v13: responsive + Android / low-end ===== */
+.p-grid{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));justify-items:center;padding:22px clamp(14px,3vw,2cm) 2cm}
+/* tablets / small laptops: narrower queue */
+@media (min-width:901px) and (max-width:1100px){
+ #pastas:not(.at-root) .p-left{flex:0 0 70%;width:70%}
+ #pastas:not(.at-root) .p-queue{flex:0 0 30%;width:30%}
+ .chat{margin-left:76px}
+}
+@media (min-width:901px) and (max-width:1024px){#pastas.at-root .p-left{flex:0 0 55%;width:55%}#pastas.at-root .p-orders{flex:0 0 45%;width:45%}}
+/* phones: chat bar and queue drawer never overlap — chat sits above the drawer (its height is tracked in --qh) */
+@media (max-width:900px){
+ body.pastas-on .chat{bottom:calc(var(--qh,60px) + 26px + env(safe-area-inset-bottom))}
+ #pastas.at-root ~ * .chat,#pastas.at-root .chat{bottom:calc(16px + env(safe-area-inset-bottom))}
+ body.kb-open.pastas-on .chat{bottom:calc(var(--kb,0px) + 6px)!important;z-index:40}
+ body.kb-open.pastas-on .p-queue{visibility:hidden}
+ .p-grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));padding:14px 10px 220px}
+ .zip-btn{height:38px;margin-left:auto}
+}
+@media (max-width:380px){.p-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 2px;padding-left:22px;padding-right:22px}body.team .topbar .brand{display:none}}
+@media (max-width:340px){.p-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Android / low-memory: no backdrop blur (expensive), solid translucent backgrounds; opacity-only pulses */
+.lowfx .glass,.lowfx .circ,.lowfx .p-queue,.lowfx .chat{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+.lowfx .glass{background:linear-gradient(180deg,rgba(30,38,54,.96),rgba(17,22,33,.96))}
+.lowfx .tile,.lowfx .new-tile,.lowfx .up-tile{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+.lowfx .ph .frame.unseen,.lowfx .tile.unseen,.lowfx .rp-it.unseen,.lowfx .q-row.unseen,.lowfx .ph .rel.unseen{animation:ublink 1.6s ease-in-out infinite;box-shadow:0 0 0 3px rgba(64,156,255,.6),0 0 16px 4px rgba(64,156,255,.55)}
+.lowfx .ph .pnm.unseen,.lowfx .tile .nm.unseen,.lowfx .rp-cap.unseen{animation:ublink 1.6s ease-in-out infinite;background:rgba(64,156,255,.3)}
+.lowfx .ph .tech button.unseen{animation:ublink 1.4s ease-in-out infinite;box-shadow:inset 0 0 0 2px var(--tc),0 0 10px 2px var(--tc)}
+@keyframes ublink{0%,100%{opacity:1}50%{opacity:.62}}
+@media (prefers-reduced-motion:reduce){.lowfx .unseen{animation:none!important}}
+/* phones in landscape: queue drawer on the right, chat bar on the left — side by side, never stacked over each other */
+@media (max-width:900px) and (max-height:500px){
+ .p-queue{left:auto!important;width:min(400px,46vw)!important;max-height:calc(100dvh - 70px)!important}
+ body.pastas-on #pastas .chat{bottom:calc(12px + env(safe-area-inset-bottom));right:calc(min(400px,46vw) + 20px);height:min(60dvh,260px)}
+ body.pastas-on #pastas.at-root .chat{right:10px}
+ body.pastas-on #pastas .chat.collapsed{height:44px}
+}
+/* long folder names never widen the page */
+.p-head{min-width:0;flex-wrap:wrap;row-gap:4px;padding-left:clamp(14px,3vw,2cm);padding-right:clamp(14px,3vw,2cm)}
+.crumb{max-width:min(320px,42vw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.crumb.cur{max-width:min(420px,60vw)}
+.tile .nm,.ph .pnm{max-width:100%}

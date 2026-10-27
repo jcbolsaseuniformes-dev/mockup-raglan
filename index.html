@@ -14,13 +14,16 @@ window.PASTAS_CONFIG={
   maxImageSize:1600,jpegQuality:0.85
 };
 </script>
+<script>/* v13: device class for performance tweaks (Android / low-end: lower DPR, no heavy blur) */
+(()=>{const ua=navigator.userAgent,and=/Android/i.test(ua),low=(navigator.deviceMemory&&navigator.deviceMemory<=4)||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4),mob=matchMedia('(pointer:coarse)').matches;
+ window.__dev={android:and,low:!!low,mobile:mob};const c=document.documentElement.classList;if(and)c.add('android');if(and||low)c.add('lowfx');if(mob)c.add('touch')})();</script>
 <link rel="stylesheet" href="pastas.css">
 <style>
 *{box-sizing:border-box}html,body{height:100%}
 body{margin:0;font-family:Nunito,Inter,system-ui,sans-serif;color:#e8edf5;overflow:hidden;
 background:radial-gradient(ellipse 60% 70% at 25% 35%,#2a2c31 0%,#16171a 55%,#0b0b0d 100%)}
 body:after{content:"";position:fixed;inset:auto 0 0 0;height:260px;pointer-events:none;background:radial-gradient(ellipse 45% 100% at 72% 100%,rgba(30,90,200,.18),transparent 70%)}
-.app{display:grid;grid-template-columns:46% 1fr;gap:16px;height:100vh;padding:18px 18px 18px 18px}
+.app{display:grid;grid-template-columns:46% 1fr;gap:16px;height:100vh;height:100dvh;padding:18px 18px 18px 18px}
 .glass{background:linear-gradient(180deg,rgba(28,36,52,.62),rgba(14,19,30,.62));backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);
 border:1px solid rgba(160,190,230,.16);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)}
 .left{position:relative;display:flex;flex-direction:column;gap:14px;min-height:0}
@@ -119,7 +122,7 @@ background:linear-gradient(180deg,#2b8bff,#1462e0);box-shadow:0 0 26px rgba(30,1
 </head><body>
 <nav class="topbar"><span class="brand">Camisa Raglan</span><div class="ttabs glass">
  <button class="ttab sel" data-tab="mockup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 3 3 6l2 4 2-1v12h10V9l2 1 2-4-5-3c-.5 1.5-2 2.5-4 2.5S8.5 4.5 8 3Z"/></svg>Mockup</button>
- <button class="ttab" data-tab="pastas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>Pastas</button></div></nav>
+ <button class="ttab" data-tab="pastas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>Pastas</button></div><button id="lockBtn" class="lock-btn" title="Sair (bloquear as Pastas neste aparelho)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>Sair</span></button></nav>
 <section id="pastas"></section>
 <div id="trash" title="Arraste aqui para excluir"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 11v6M14 11v6"/></svg></div>
 <div class="app">
@@ -149,11 +152,11 @@ const RENDER={'Preto':'#151515','Branco':'#f7f7f7'};const tint=n=>RENDER[n]||COL
 const SIZES=['PP','P','M','G','GG','XG1','XG2'];
 const H=75;let bodyColor='Branco',sleeveName='Preto';const sleeveColor=new THREE.Color(tint('Preto'));
 const viewer=document.getElementById('viewer');
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(2,devicePixelRatio));viewer.prepend(renderer.domElement);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});const LOWFX=__dev.android||__dev.low,MOB=__dev.mobile;renderer.setPixelRatio(Math.min(LOWFX?1.5:2,devicePixelRatio));viewer.prepend(renderer.domElement);
 const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(30,1,1,2000);
-renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=LOWFX||MOB?THREE.PCFShadowMap:THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.outputColorSpace=THREE.SRGBColorSpace;
 const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(new RoomEnvironment(),0.04).texture;
-const key=new THREE.DirectionalLight(0xfff6ee,2.0);key.position.set(60,150,160);key.castShadow=true;key.shadow.mapSize.set(2048,2048);key.shadow.radius=8;key.shadow.bias=-0.0005;
+const key=new THREE.DirectionalLight(0xfff6ee,2.0);key.position.set(60,150,160);key.castShadow=true;key.shadow.mapSize.set(LOWFX?1024:MOB?1536:2048,LOWFX?1024:MOB?1536:2048);key.shadow.radius=8;key.shadow.bias=-0.0005;
 Object.assign(key.shadow.camera,{left:-90,right:90,top:110,bottom:-110,near:10,far:500});scene.add(key);
 const fill=new THREE.DirectionalLight(0xdfe8ff,.6);fill.position.set(-130,40,90);scene.add(fill);
 const rim=new THREE.DirectionalLight(0xcfe0ff,2.2);rim.position.set(-60,90,-160);scene.add(rim);
@@ -250,7 +253,7 @@ const HOME={pos:new THREE.Vector3(0,8,198),tgt:new THREE.Vector3(-3,6,0)};camera
 let anim=null,active=null;
 function tween(toRot,toPos,toTgt,ms=900){const fr=bust.rotation.y,fp=camera.position.clone(),ft=controls.target.clone();const t0=performance.now();
  let d=toRot-fr;d=Math.atan2(Math.sin(d),Math.cos(d));anim=now=>{let t=Math.min(1,(now-t0)/ms);t=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
- bust.rotation.y=fr+d*t;camera.position.lerpVectors(fp,toPos,t);controls.target.lerpVectors(ft,toTgt,t);if(t>=1)anim=null}}
+ bust.rotation.y=fr+d*t;camera.position.lerpVectors(fp,toPos,t);controls.target.lerpVectors(ft,toTgt,t);if(t>=1)anim=null};window.__invalidate?.()}
 const restOp=o=>o.mesh.material.map?1:REST;
 function focus(a){active=a;controls.enabled=false;const rot=a.sleeve?Math.atan2(-a.N.x,a.N.z):(a.side>0?-Math.atan2(a.cx,30)*0.6:Math.PI);setView(a.view,false);
  const Y=new THREE.Vector3(0,1,0);const w=a.center.clone();w.y-=H/2;w.applyAxisAngle(Y,rot);const n=a.N.clone().applyAxisAngle(Y,rot);if(!a.sleeve)n.set(0,0,1);
@@ -292,12 +295,23 @@ const folder=document.getElementById('folder'),file=document.getElementById('fil
 file.onchange=()=>{const f=file.files[0];if(!f||!active)return;const img=new Image();img.onload=()=>{const a=active;const cv=document.createElement('canvas');const sc=20;cv.width=a.w*sc;cv.height=a.h*sc;
  const ctx=cv.getContext('2d');const r=Math.min(cv.width/img.width,cv.height/img.height);const w=img.width*r,h=img.height*r;ctx.drawImage(img,(cv.width-w)/2,(cv.height-h)/2,w,h);
  const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;
- a.mesh.material.map=t;a.label.visible=false;a.mesh.material.color.set(0xffffff);a.mesh.material.opacity=1;a.mesh.material.needsUpdate=true;file.value=''};img.src=URL.createObjectURL(f)};
-function resize(){const w=viewer.clientWidth,h=viewer.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}addEventListener('resize',resize);resize();if(window.ResizeObserver)new ResizeObserver(()=>resize()).observe(viewer);
+ a.mesh.material.map=t;a.srcFile=f;a.label.visible=false;a.mesh.material.color.set(0xffffff);a.mesh.material.opacity=1;a.mesh.material.needsUpdate=true;file.value='';thumbsDirty=true;window.__invalidate?.()};img.src=URL.createObjectURL(f)};
+function resize(){const w=viewer.clientWidth,h=viewer.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();window.__invalidate?.()}addEventListener('resize',resize);resize();if(window.ResizeObserver)new ResizeObserver(()=>resize()).observe(viewer);
 const v=new THREE.Vector3();
-renderer.setAnimationLoop(now=>{if(document.body.classList.contains('pastas-on')||document.hidden)return;if(thumbsDirty)renderThumbs();if(anim)anim(now);controls.update();renderer.render(scene,camera);
+/* v13: render on demand (only while something changes: camera damping, tweens, input, color/texture updates); paused when hidden or on Pastas */
+let rq=false,lastIn=0;function invalidate(){if(rq)return;rq=true;requestAnimationFrame(frame)}window.__invalidate=invalidate;let frames=0;window.__frames=()=>frames;
+controls.addEventListener('change',invalidate);
+function frame(now){rq=false;if(document.body.classList.contains('pastas-on')||document.hidden)return;frames++;
+ if(thumbsDirty)renderThumbs();if(anim)anim(now);const moving=controls.update();renderer.render(scene,camera);
  if(active&&!anim){bust.updateMatrixWorld();v.copy(active.corner).applyMatrix4(bust.matrixWorld).project(camera);
-  folder.style.display='flex';folder.style.left=((v.x+1)/2*viewer.clientWidth+8)+'px';folder.style.top=((1-v.y)/2*viewer.clientHeight-46)+'px'}else folder.style.display='none'});
+  folder.style.display='flex';folder.style.left=((v.x+1)/2*viewer.clientWidth+8)+'px';folder.style.top=((1-v.y)/2*viewer.clientHeight-46)+'px'}else folder.style.display='none';
+ if(anim||moving||now-lastIn<700)invalidate()}
+const poke=()=>{lastIn=performance.now();invalidate()};
+['pointerdown','pointerup','wheel','click','keydown','touchstart','touchend','change','input'].forEach(t=>addEventListener(t,poke,{passive:true,capture:true}));
+addEventListener('pointermove',e=>{if(e.buttons||e.pointerType==='touch')poke()},{passive:true,capture:true});
+addEventListener('resize',poke);document.addEventListener('visibilitychange',poke);addEventListener('hashchange',poke);
+if(window.ResizeObserver)new ResizeObserver(poke).observe(viewer);
+poke();
 // table
 const tb=document.getElementById('tb');const opt=(arr,sel)=>arr.map(x=>`<option${x===sel?' selected':''}>${x}</option>`).join('');
 const TRASH=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 11v6M14 11v6"/></svg>`;
@@ -359,14 +373,51 @@ async function setGarment(k){if(cur.kind===k)return;
 gbtns.forEach(b=>b.onclick=()=>setGarment(b.dataset.g));
 window.__garment=setGarment;window.__cur=()=>cur.kind;
 
-document.getElementById('csv').onclick=async()=>{const btn=document.getElementById('csv'),txt=document.getElementById('csvTxt');if(btn.disabled)return;btn.disabled=true;txt.textContent='Gerando pedido…';
- try{const {default:JSZip}=await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');const d=new Date(),z=n=>String(n).padStart(2,'0');
-  const stamp=`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`;const base='pedido-'+(cur.kind==='moletom'?'moletom':'camisa')+'-'+stamp;
-  const zip=new JSZip();const f=zip.folder(base);f.file('pedido.csv',buildCSV());
-  f.file('info.txt',`Pedido – ${cur.nome}\r\nModelo: ${cur.nome}\r\nData: ${d.toLocaleString('pt-BR')}\r\nCor do corpo: ${bodyColor}\r\nCor da manga (mangas e gola): ${sleeveName}\r\nÁreas com imagem: ${AREAS.filter(a=>a.mesh.material.map).map(a=>a.nome+' ('+a.w+'x'+a.h+' cm)').join(', ')||'nenhuma'}\r\n`);
-  for(const [n,b] of await renderExports())f.file(n,b);
-  const blob=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=base+'.zip';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
- catch(e){console.error(e);alert('Não foi possível gerar o pedido. Tente novamente.')}
+// v13: "Salvar pedido" asks for the company name and uploads the order to the team's Pastas (no local download)
+function askCompany(){return new Promise(res=>{const m=document.createElement('div');m.className='gate';m.innerHTML=`<form class="gate-box glass" autocomplete="organization"><h3>Nome da empresa</h3><p>Informe o nome da sua empresa para enviarmos o pedido.</p><input maxlength="60" placeholder="Nome da empresa" aria-label="Nome da empresa"><div class="gate-err" hidden>Informe o nome da empresa</div><div class="gate-act"><button type="button" class="gate-c">Cancelar</button><button type="submit" class="gate-ok">Salvar</button></div></form>`;
+ document.body.append(m);const f=m.querySelector('form'),i=m.querySelector('input'),er=m.querySelector('.gate-err');setTimeout(()=>i.focus(),50);
+ const close=v=>{m.remove();removeEventListener('keydown',k);res(v)};const k=e=>{if(e.key==='Escape')close(null)};addEventListener('keydown',k);
+ m.querySelector('.gate-c').onclick=()=>close(null);m.addEventListener('mousedown',e=>{if(e.target===m)close(null)});
+ f.onsubmit=e=>{e.preventDefault();const v=i.value.replace(/\s+/g,' ').trim().slice(0,60);if(!v){er.hidden=false;i.focus();return}close(v)}})}
+function orderStatus(){const m=document.createElement('div');m.className='gate';m.innerHTML=`<div class="gate-box glass ord-box"><div class="ord-spin"></div><h3>Enviando pedido…</h3><p class="ord-msg">Preparando arquivos…</p><div class="ord-bar"><i></i></div></div>`;document.body.append(m);
+ return{set(t,pct){m.querySelector('.ord-msg').textContent=t;if(pct!=null)m.querySelector('.ord-bar i').style.width=Math.round(pct)+'%'},
+  ok(name){m.querySelector('.ord-box').innerHTML=`<div class="ord-ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg></div><h3>Pedido enviado!</h3><p>Recebemos o pedido de <b></b>. Obrigado!</p><div class="gate-act"><button class="gate-ok">OK</button></div>`;m.querySelector('b').textContent=name;m.querySelector('.gate-ok').onclick=()=>m.remove()},
+  fail(){m.querySelector('.ord-box').innerHTML=`<h3>Não foi possível enviar</h3><p>Verifique sua conexão e tente novamente.</p><div class="gate-act"><button class="gate-ok">OK</button></div>`;m.querySelector('.gate-ok').onclick=()=>m.remove()}}}
+document.getElementById('csv').onclick=async()=>{const btn=document.getElementById('csv'),txt=document.getElementById('csvTxt');if(btn.disabled)return;
+ const company=await askCompany();if(!company)return;btn.disabled=true;txt.textContent='Enviando pedido…';const st=orderStatus();
+ try{const d=new Date();
+  const info=`Pedido – ${cur.nome}\r\nEmpresa: ${company}\r\nModelo: ${cur.nome}\r\nData: ${d.toLocaleString('pt-BR')}\r\nCor do corpo: ${bodyColor}\r\nCor da manga (mangas e gola): ${sleeveName}\r\nÁreas com imagem: ${AREAS.filter(a=>a.mesh.material.map).map(a=>a.nome+' ('+a.w+'x'+a.h+' cm)').join(', ')||'nenhuma'}\r\n`;
+  st.set('Gerando imagens do mockup…',5);
+  const images=(await renderExports()).map(([n,b])=>({name:n,blob:b}));
+  for(const a of AREAS)if(a.mesh.material.map&&a.srcFile){const ext=(a.srcFile.name.match(/\.[a-z0-9]{2,5}$/i)||[''])[0];images.push({name:'arte – '+a.nome+ext,blob:a.srcFile})}
+  const {sendOrder}=await import('./pedido.js');
+  const r=await sendOrder({company,csv:buildCSV(),info,images,onProgress:(i,n)=>st.set(`Enviando ${Math.min(i+1,n)} de ${n}…`,10+90*i/n)});
+  st.ok(r.name)}
+ catch(e){console.error(e);st.fail()}
  finally{btn.disabled=false;txt.textContent='Salvar pedido'}};
+window.__order={askCompany};
 </script>
-<script type="module" src="pastas.js"></script></body></html>
+<script type="module">
+/* v13: client link (/, #/mockup) = Mockup only; team link (#/pastas...) = tabs + password.
+   Convenience lock only (static site; anyone who reads this code can bypass it) — not real security.
+   Only a salted SHA-256 of the password is stored here, never the password itself. */
+const TEAM_HASH='bb7cd9acd974ca7e235d2e1f7e9ac2f3e45f43abe95ad7a5010985840d68db17',SALT='mockup-raglan|jcbolsas|equipe|',KEY='raglan-team-unlock';
+const isTeamHash=()=>location.hash.startsWith('#/pastas');
+let team=false,loaded=false;
+const sha=async t=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+async function loadPastas(){if(loaded)return;loaded=true;await import('./pastas.js')}
+function enterTeam(){if(team)return;team=true;document.body.classList.remove('client');document.body.classList.add('team')}
+function askPassword(){return new Promise(res=>{const m=document.createElement('div');m.className='gate';m.innerHTML=`<form class="gate-box glass" autocomplete="off"><div class="gate-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div><h3>Área da equipe</h3><p>Digite a senha para acessar as Pastas.</p><input type="password" placeholder="Senha" aria-label="Senha" autocomplete="current-password"><div class="gate-err" hidden>Senha incorreta</div><div class="gate-act"><button type="button" class="gate-c">Ver mockup</button><button type="submit" class="gate-ok">Entrar</button></div></form>`;
+ document.body.append(m);const f=m.querySelector('form'),i=m.querySelector('input'),er=m.querySelector('.gate-err');setTimeout(()=>i.focus(),50);
+ m.querySelector('.gate-c').onclick=()=>{m.remove();res(false)};
+ f.onsubmit=async e=>{e.preventDefault();const h=await sha(SALT+i.value);if(h===TEAM_HASH){localStorage.setItem(KEY,h);m.remove();res(true)}else{er.hidden=false;i.select();f.classList.remove('shake');void f.offsetWidth;f.classList.add('shake')}}})}
+let asking=false;
+async function check(){if(!isTeamHash()){if(!team)document.body.classList.add('client');return}
+ enterTeam();if(loaded)return;
+ if(localStorage.getItem(KEY)===TEAM_HASH)return loadPastas();
+ if(asking)return;asking=true;document.body.classList.add('locked');const ok=await askPassword();asking=false;document.body.classList.remove('locked');
+ if(ok)loadPastas();else location.hash='#/mockup'}
+addEventListener('hashchange',check);check();
+document.getElementById('lockBtn').onclick=()=>{localStorage.removeItem(KEY);location.hash='#/mockup';location.reload()};
+window.__gate={hash:TEAM_HASH};
+</script></body></html>
