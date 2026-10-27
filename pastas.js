@@ -72,6 +72,7 @@ class IndexedDBStore extends BaseStore{
  chatListen(key,cb){this._ck=key;this._ccb=cb;cb(this._chat(key))}
  _chat(key){try{return JSON.parse(localStorage.getItem('raglan-chat-'+key)||'[]')}catch{return[]}}
  async chatSend(key,m){const l=this._chat(key);l.push({id:uid(),...m});localStorage.setItem('raglan-chat-'+key,JSON.stringify(l.slice(-100)));if(this._ck===key)this._ccb(this._chat(key))}
+ async chatImage(img){return img.data||img.thumb}
  async chatDelete(key,id){localStorage.setItem('raglan-chat-'+key,JSON.stringify(this._chat(key).filter(x=>x.id!==id)));if(this._ck===key)this._ccb(this._chat(key))}
  async deleteRelated(id){await this._tx('related',s=>s.delete(id));this._revoke(id);this.r.delete(id);this.emit()}
  async enqueue(photoId,order){const x={id:uid(),photoId,order,addedAt:Date.now(),folderId:this.homeOf(photoId)};await this._tx('queue',s=>s.put(x));this.q.set(x.id,x);this.emit();return x}
@@ -167,7 +168,12 @@ class FirebaseStore extends BaseStore{
  _chatCol(key){return this.fs.collection(this.db,(this.opts.prefix||'')+'chats',key,'messages')}
  chatListen(key,cb){this._cu?.();const fs=this.fs;this._cu=fs.onSnapshot(fs.query(this._chatCol(key),fs.orderBy('createdAt','desc'),fs.limit(100)),snap=>cb(snap.docs.map(d=>({id:d.id,...d.data()})).reverse()),err=>{console.warn('Chat:',err.message);cb([])})}
  async chatSend(key,m){await this.fs.setDoc(this.fs.doc(this._chatCol(key),uid()),m)}
- async chatDelete(key,id){await this.fs.deleteDoc(this.fs.doc(this._chatCol(key),id))}
+ /* v14: pasted screenshots — full image (JPEG ≤1600px) split in photoData/chatimg_<id>_c<i> (≤700k chars each), thumb kept on the message */
+ async chatPutImage(data){const id='chatimg_'+uid();const CH=700000;const n=Math.max(1,Math.ceil(data.length/CH));const b=this.fs.writeBatch(this.db);
+  for(let i=0;i<n;i++)b.set(this._d(this.cd,id+'_c'+i),{data:data.slice(i*CH,(i+1)*CH),part:i,of:n,kind:'chat'});await b.commit();this.full.set(id,data);return{id,chunks:n}}
+ async chatImage(img){if(!img.chunks)return img.thumb;if(this.full.has(img.id))return this.full.get(img.id);const parts=await Promise.all(Array.from({length:img.chunks},(_,i)=>this.fs.getDoc(this._d(this.cd,img.id+'_c'+i))));
+  const u=parts.map(d=>d.exists()?d.data().data:'').join('')||img.thumb;this.full.set(img.id,u);return u}
+ async chatDelete(key,id,img){const refs=[this.fs.doc(this._chatCol(key),id)];if(img?.id&&img.chunks)for(let i=0;i<img.chunks;i++)refs.push(this._d(this.cd,img.id+'_c'+i));await this._batchDelete(refs)}
  async deleteRelated(id){const x=this.r.get(id)||{id};await this._batchDelete(this._relRefs(x));this.full.delete(id);if(x.parentId&&this.p.has(x.parentId))await this.fs.updateDoc(this._d(this.cp,x.parentId),this._u('related')).catch(()=>{})}
  async enqueue(photoId,order){const id=uid();const x={photoId,order,addedAt:Date.now(),folderId:this.homeOf(photoId)};await this.fs.setDoc(this._d(this.cq,id),{...x,mods:{self:this._M()}});return{id,...x}}
  async reorderQueue(id,order){const x=this.q.get(id);if(x&&x.order===order)return;if(x){this.q.set(id,{...x,order});this.emit()}await this.fs.updateDoc(this._d(this.cq,id),{order,...this._u('order')})}
@@ -429,8 +435,8 @@ const cp1000=t=>Array.from(String(t||'')).slice(0,1000).join('');/* count by cod
 const EMOJI_ONLY=/^(?:(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2})(?:\uFE0F|\p{Emoji_Modifier}|\u200D(?:\p{Extended_Pictographic})\uFE0F?)*\s*){1,3}$/u;
 const chatId=localStorage.getItem(CHAT_ID_KEY)||CLIENT_ID;
 let chatKey=null,chatMsgs=[];
-chatEl.innerHTML=`<div class="c-head" role="button" tabindex="0"><svg class="c-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12Z"/></svg><b>Chat</b><span class="c-where"></span><span class="c-badge" hidden></span><button class="c-me" title="Alterar seu nome"></button><span class="c-chev" title="Minimizar"></span></div>
- <div class="c-body"><div class="c-list" aria-live="polite"></div><form class="c-form"><button class="c-emo" type="button" title="Emojis" aria-label="Emojis">😊</button><input class="c-in" maxlength="2000" placeholder="Escreva uma mensagem…" autocomplete="off"><button class="c-send" type="submit" title="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg></button></form></div>`;
+chatEl.innerHTML=`<div class="c-grip" title="Arraste para redimensionar" aria-hidden="true"><i></i></div><div class="c-head" role="button" tabindex="0"><svg class="c-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12Z"/></svg><b>Chat</b><span class="c-where"></span><span class="c-badge" hidden></span><button class="c-me" title="Alterar seu nome"></button><span class="c-chev" title="Minimizar"></span></div>
+ <div class="c-body"><div class="c-list" aria-live="polite"></div><div class="c-pend" hidden></div><form class="c-form"><button class="c-emo" type="button" title="Emojis" aria-label="Emojis">😊</button><button class="c-attb" type="button" title="Anexar imagem" aria-label="Anexar imagem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg></button><input class="c-in" maxlength="2000" placeholder="Escreva uma mensagem…" autocomplete="off"><button class="c-send" type="submit" title="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg></button></form></div>`;
 const cList=chatEl.querySelector('.c-list'),cIn=chatEl.querySelector('.c-in'),cMe=chatEl.querySelector('.c-me'),cBadge=chatEl.querySelector('.c-badge');
 const cKey=matchMedia('(max-width:900px)').matches?'raglan-chat-collapsed-m':'raglan-chat-collapsed';
 chatEl.classList.toggle('collapsed',(localStorage.getItem(cKey)??(matchMedia('(max-width:900px)').matches?'1':'0'))==='1');
@@ -444,19 +450,59 @@ cMe.onclick=async e=>{e.stopPropagation();const n=await modal({title:'Seu nome n
 const hhmm=t=>{const d=new Date(t),z=n=>String(n).padStart(2,'0');return`${z(d.getHours())}:${z(d.getMinutes())}`};
 const linkify=t=>esc(t).replace(/\bhttps?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]/g,u=>`<a href="${u}" target="_blank" rel="noopener noreferrer nofollow">${u}</a>`);
 function paintChat(){const atBottom=cList.scrollHeight-cList.scrollTop-cList.clientHeight<40;const prevLast=cList.dataset.last;
- cList.innerHTML=chatMsgs.length?chatMsgs.map(m=>{const tx=cp1000(m.text);return`<div class="c-msg ${m.authorId===chatId?'me':'other'}${EMOJI_ONLY.test(tx.trim())?' big':''}" data-m="${esc(m.id)}"><div class="c-meta"><b>${esc(m.author||'Anônimo')}</b><time>${hhmm(m.createdAt)}</time></div><div class="c-txt">${linkify(tx)}</div></div>`}).join('')
+ cList.innerHTML=chatMsgs.length?chatMsgs.map(m=>{const tx=cp1000(m.text||'');const im=m.img&&m.img.thumb?`<div class="c-img" role="button" tabindex="0" title="Abrir imagem"><img alt="Imagem" loading="lazy" decoding="async" src="${esc(m.img.thumb)}"${m.img.w?` width="${+m.img.w}" height="${+m.img.h}"`:''}></div>`:'';
+  return`<div class="c-msg ${m.authorId===chatId?'me':'other'}${!im&&EMOJI_ONLY.test(tx.trim())?' big':''}${im?' has-img':''}" data-m="${esc(m.id)}"><div class="c-meta"><b>${esc(m.author||'Anônimo')}</b><time>${hhmm(m.createdAt)}</time></div>${im}${tx?`<div class="c-txt">${linkify(tx)}</div>`:''}</div>`}).join('')
   :`<div class="c-empty">Nenhuma mensagem ${chatKey==='__root'?'no chat geral':'nesta pasta'} ainda.</div>`;
  const last=chatMsgs[chatMsgs.length-1];cList.dataset.last=last?.id||'';
  if(atBottom||last?.authorId===chatId||!prevLast)cList.scrollTop=cList.scrollHeight;
  if(last&&prevLast&&last.id!==prevLast&&last.authorId!==chatId&&chatEl.classList.contains('collapsed')){unread++;cBadge.textContent=unread;cBadge.hidden=false}}
 function chatSync(){const k=cur||'__root';const f=cur?store.folder(cur):null;chatEl.querySelector('.c-where').textContent=f?'· '+f.name:'· Geral';
  if(k===chatKey)return;chatKey=k;chatMsgs=[];unread=0;cBadge.hidden=true;cList.dataset.last='';paintChat();store.chatListen(k,list=>{if(chatKey!==k)return;chatMsgs=list;paintChat()})}
-chatEl.querySelector('.c-form').onsubmit=async e=>{e.preventDefault();emoPop.hidden=true;const text=cp1000(cIn.value.trim());if(!text||!chatKey)return;
+chatEl.querySelector('.c-form').onsubmit=async e=>{e.preventDefault();emoPop.hidden=true;const text=cp1000(cIn.value.trim());const pend=cPend._file;if((!text&&!pend)||!chatKey||sendingImg)return;
  let name=meName();if(!name){name=await modal({title:'Seu nome no chat',text:'Como você quer aparecer nas mensagens?',input:true,placeholder:'Seu nome',ok:'Salvar'});if(!name)return;name=name.slice(0,40);localStorage.setItem(CHAT_ME_KEY,name);paintMe()}
- cIn.value='';try{await store.chatSend(chatKey,{folderId:chatKey==='__root'?null:chatKey,author:name,authorId:chatId,text,createdAt:Date.now()})}catch(err){console.warn(err);cIn.value=text;toast('Não foi possível enviar')}cIn.focus()};
-async function copyMsg(id){const m=chatMsgs.find(x=>x.id===id);if(!m)return;try{await navigator.clipboard.writeText(m.text)}catch{const t=$(`<textarea>`);t.value=m.text;document.body.append(t);t.select();document.execCommand('copy');t.remove()}toast('Mensagem copiada')}
-async function delMsg(id){if(await modal({title:'Excluir mensagem?',text:'A mensagem será excluída para todos. Esta ação não pode ser desfeita.',ok:'Excluir',danger:true})){try{await store.chatDelete(chatKey,id)}catch(e){toast('Não foi possível excluir')}}}
-window.__pastasChat={key:()=>chatKey};
+ cIn.value='';const key=chatKey;
+ try{let img=null;if(pend){sendingImg=true;cPend.classList.add('busy');const [full,thumb,dim]=await Promise.all([encodeJPEG(pend,1600,.85),encodeJPEG(pend,360,.72),imgDim(pend)]);const r=await store.chatPutImage(full);img={id:r.id,chunks:r.chunks,thumb,w:dim.w,h:dim.h,mime:'image/jpeg',name:pend.name||'imagem.jpg'}}
+  await store.chatSend(key,{folderId:key==='__root'?null:key,author:name,authorId:chatId,text,createdAt:Date.now(),...(img?{img}:{})});if(pend)clearPend()}
+ catch(err){console.warn(err);cIn.value=text;toast(pend?'Não foi possível enviar a imagem':'Não foi possível enviar')}
+ finally{sendingImg=false;cPend.classList.remove('busy')}cIn.focus()};
+async function copyMsg(id){const m=chatMsgs.find(x=>x.id===id);if(!m)return;
+ if(m.img){try{const u=await store.chatImage(m.img);const png=await toPNG(u);await navigator.clipboard.write([new ClipboardItem({'image/png':png})]);toast('Imagem copiada');return}catch(e){const t=m.text||m.img.name||'imagem';try{await navigator.clipboard.writeText(t)}catch{}toast('Não foi possível copiar a imagem — texto/nome copiado');return}}
+ try{await navigator.clipboard.writeText(m.text)}catch{const t=$(`<textarea>`);t.value=m.text;document.body.append(t);t.select();document.execCommand('copy');t.remove()}toast('Mensagem copiada')}
+async function delMsg(id){if(await modal({title:'Excluir mensagem?',text:'A mensagem será excluída para todos. Esta ação não pode ser desfeita.',ok:'Excluir',danger:true})){try{const m=chatMsgs.find(x=>x.id===id);await store.chatDelete(chatKey,id,m?.img)}catch(e){toast('Não foi possível excluir')}}}
+window.__pastasChat={key:()=>chatKey,msgs:()=>chatMsgs};
+// ---------- v14: chat images (paste / drop / attach), lightbox, resize ----------
+let sendingImg=false;const cPend=chatEl.querySelector('.c-pend');
+const imgDim=b=>createImageBitmap(b).then(x=>{const s=Math.min(1,360/Math.max(x.width,x.height));const r={w:Math.round(x.width*s),h:Math.round(x.height*s)};x.close?.();return r}).catch(()=>({w:0,h:0}));
+async function toPNG(u){const im=new Image();im.src=u;await im.decode();const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;c.getContext('2d').drawImage(im,0,0);return new Promise(r=>c.toBlob(r,'image/png'))}
+function clearPend(){if(cPend._url)URL.revokeObjectURL(cPend._url);cPend._file=null;cPend._url=null;cPend.hidden=true;cPend.innerHTML=''}
+function setPend(f){if(!f||!f.type.startsWith('image/'))return false;if(f.size>25e6){toast('Imagem grande demais');return true}clearPend();cPend._file=f;cPend._url=URL.createObjectURL(f);
+ cPend.innerHTML=`<img src="${cPend._url}" alt=""><span>${esc(f.name&&f.name!=='image.png'?f.name:'Captura de tela')}</span><button type="button" class="c-pend-x" title="Remover imagem" aria-label="Remover imagem">×</button>`;cPend.hidden=false;
+ cPend.querySelector('.c-pend-x').onclick=()=>{clearPend();cIn.focus()};if(chatEl.classList.contains('collapsed'))setCollapsed(false);cIn.focus({preventScroll:true});return true}
+const imgFrom=dt=>{for(const it of dt?.items||[])if(it.kind==='file'&&it.type.startsWith('image/'))return it.getAsFile();for(const f of dt?.files||[])if(f.type.startsWith('image/'))return f;return null};
+cIn.addEventListener('paste',e=>{const f=imgFrom(e.clipboardData);if(f){e.preventDefault();setPend(f)}});/* plain text paste stays default */
+chatEl.addEventListener('dragover',e=>{if(!drag&&[...(e.dataTransfer?.types||[])].includes('Files')){e.preventDefault();e.stopPropagation();chatEl.classList.add('c-drop')}});
+chatEl.addEventListener('dragleave',e=>{if(!chatEl.contains(e.relatedTarget))chatEl.classList.remove('c-drop')});
+chatEl.addEventListener('drop',e=>{chatEl.classList.remove('c-drop');if(drag)return;const f=imgFrom(e.dataTransfer);if(f){e.preventDefault();e.stopPropagation();setPend(f)}});
+const cAttIn=$(`<input type="file" accept="image/*" hidden>`);chatEl.append(cAttIn);chatEl.querySelector('.c-attb').onclick=()=>cAttIn.click();cAttIn.onchange=()=>{setPend(cAttIn.files[0]);cAttIn.value=''};
+cList.addEventListener('load',e=>{if(e.target.tagName==='IMG'&&cList.scrollHeight-cList.scrollTop-cList.clientHeight<e.target.clientHeight+120)cList.scrollTop=cList.scrollHeight},true);
+cList.addEventListener('click',e=>{const b=e.target.closest('.c-img');if(!b)return;const m=chatMsgs.find(x=>x.id===b.closest('.c-msg').dataset.m);if(m?.img)chatLightbox(m)});
+function chatLightbox(m){const lb=$(`<div class="lb c-lb"><button class="x" title="Fechar">×</button><img alt="" src="${esc(m.img.thumb)}"><div class="c-lb-bar"><span>${esc(m.author||'')} · ${hhmm(m.createdAt)}</span><button class="c-lb-dl" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v3h16v-3"/></svg>Baixar</button></div></div>`);
+ const close=()=>{lb.remove();removeEventListener('keydown',k,true)};const k=e=>{if(e.key==='Escape'){e.stopPropagation();close()}};addEventListener('keydown',k,true);
+ lb.onclick=e=>{if(e.target===lb||e.target.closest('.x'))close()};const im=lb.querySelector('img');
+ lb.querySelector('.c-lb-dl').onclick=async e=>{e.stopPropagation();const u=await store.chatImage(m.img);const b=await (await fetch(u)).blob();dlBlob(b,(m.img.name||'imagem').replace(/\.[a-z0-9]+$/i,'')+'.jpg')};
+ document.body.append(lb);store.chatImage(m.img).then(u=>{if(u&&lb.isConnected)im.src=u}).catch(()=>{})}
+// resize by dragging the top border (min = default, max = 2× default; phones ≤60% of the viewport); height remembered per device
+{const grip=chatEl.querySelector('.c-grip');const mob=()=>matchMedia('(max-width:900px)').matches;const HK=()=>mob()?'raglan-chat-h-m':'raglan-chat-h';
+ const defH=()=>{if(!mob())return 164;if(matchMedia('(max-height:500px)').matches)return Math.min(innerHeight*.6,260);return Math.min(innerHeight*.46,320)};
+ const maxH=()=>mob()?Math.min(defH()*2,innerHeight*.6):defH()*2;const clampH=h=>Math.round(Math.max(defH(),Math.min(maxH(),h)));
+ const apply=h=>{if(h==null){chatEl.style.removeProperty('--ch');return}chatEl.style.setProperty('--ch',clampH(h)+'px')};
+ const saved=()=>{const v=+localStorage.getItem(HK());return v>0?v:null};apply(saved());addEventListener('resize',()=>apply(saved()));
+ let st=null;grip.addEventListener('pointerdown',e=>{if(chatEl.classList.contains('collapsed'))return;e.preventDefault();grip.setPointerCapture(e.pointerId);st={y:e.clientY,h:chatEl.getBoundingClientRect().height};chatEl.classList.add('resizing')});
+ grip.addEventListener('pointermove',e=>{if(!st)return;apply(st.h+(st.y-e.clientY))});
+ const end=e=>{if(!st)return;st=null;chatEl.classList.remove('resizing');const h=parseFloat(chatEl.style.getPropertyValue('--ch'));if(h){if(Math.abs(h-defH())<2){localStorage.removeItem(HK());apply(null)}else localStorage.setItem(HK(),h)}};
+ grip.addEventListener('pointerup',end);grip.addEventListener('pointercancel',end);
+ grip.addEventListener('dblclick',()=>{localStorage.removeItem(HK());apply(null)});
+ window.__chatSize={defH,maxH,get:()=>chatEl.getBoundingClientRect().height}}
 // emoji picker (built-in, no external library)
 const EMO={'Frequentes':'👍 ❤️ 😂 😊 🙏 🔥 ✅ ❌ 🎉 👏 😮 😢 📸 👕 🧵 🎨 🖨️ ⏰ 📦 💯 👀 🤝 💪 ⭐','Rostos':'😀 😃 😄 😁 😆 😅 🤣 😉 😍 🥰 😘 😎 🤩 🤔 🤨 😐 😴 😬 🙄 😳 😡 🥲 😭 🤗 🫡 😇','Gestos':'👍 👎 👌 ✌️ 🤞 👋 🙌 👐 🫶 👉 👈 👆 👇 ✋ 🤙 💅','Trabalho':'👕 👚 🧢 🧥 🧦 🎽 🧵 🪡 🧶 ✂️ 📏 🎨 🖌️ 🖍️ 🖨️ 📸 🖼️ 📦 🚚 💰 🧾 📅 ⏰ 📌 📎 ✏️ 📝 💻 📱','Símbolos':'✅ ☑️ ❌ ⚠️ ❗ ❓ 💬 🔔 ⭐ 🌟 ✨ 💥 💯 🔴 🟠 🟡 🟢 🔵 🟣 ⚫ ⚪ ➡️ ⬅️ 🔁 🆗 🆕'};
 const emoPop=$(`<div class="c-emoji glass" hidden role="dialog" aria-label="Emojis">${Object.entries(EMO).map(([n,l])=>`<div class="ce-cat">${n}</div><div class="ce-grid">${l.split(' ').map(e=>`<button type="button" class="ce">${e}</button>`).join('')}</div>`).join('')}</div>`);
