@@ -143,7 +143,7 @@ class FirebaseStore extends BaseStore{
   await b.commit();return{id,...x}}
  /* drag a queue row back to the grid: leave the queue + leave Histórico (to folderId), newest in its technique group */
  async restoreFromQueue(qid,folderId){const q=this.q.get(qid);const b=this.fs.writeBatch(this.db);b.delete(this._d(this.cq,qid));const p=q&&this.p.get(q.photoId);
-  if(p&&folderId)b.update(this._d(this.cp,p.id),{folderId,groupedAt:Date.now(),originFolderId:this.fs.deleteField(),...this._u('image')});await b.commit()}
+  if(p&&folderId)b.update(this._d(this.cp,p.id),{folderId,groupedAt:Date.now(),originFolderId:this.fs.deleteField()});await b.commit()}/* v16: leaving the queue does not glow the photo */
  async renameFolder(id,name){const x=this.f.get(id);if(x&&x.name===name)return;if(x){this.f.set(id,{...x,name});this.emit()}await this.fs.updateDoc(this._d(this.cf,id),{name,...this._u('name')})}
  async moveFolder(id,parentId){if(parentId&&this.isInside(id,parentId))throw new Error('ciclo');await this.fs.updateDoc(this._d(this.cf,id),{parentId,...this._u('self')})}
  async deleteFolder(id){const ids=[id,...this.descendants(id)];const ph=[...this.p.values()].filter(p=>ids.includes(p.folderId));
@@ -181,7 +181,7 @@ class FirebaseStore extends BaseStore{
  async chatDelete(key,id,img){const refs=[this.fs.doc(this._chatCol(key),id)];if(img?.id&&img.chunks)for(let i=0;i<img.chunks;i++)refs.push(this._d(this.cd,img.id+'_c'+i));await this._batchDelete(refs)}
  async deleteRelated(id){const x=this.r.get(id)||{id};await this._batchDelete(this._relRefs(x));this.full.delete(id);if(x.parentId&&this.p.has(x.parentId))await this.fs.updateDoc(this._d(this.cp,x.parentId),this._u('related')).catch(()=>{})}
  async enqueue(photoId,order){const id=uid();const x={photoId,order,addedAt:Date.now(),folderId:this.homeOf(photoId)};await this.fs.setDoc(this._d(this.cq,id),{...x,mods:{self:this._M()}});return{id,...x}}
- async reorderQueue(id,order){const x=this.q.get(id);if(x&&x.order===order)return;if(x){this.q.set(id,{...x,order});this.emit()}await this.fs.updateDoc(this._d(this.cq,id),{order,...this._u('order')})}
+ async reorderQueue(id,order){const x=this.q.get(id);if(x&&x.order===order)return;if(x){this.q.set(id,{...x,order});this.emit()}await this.fs.updateDoc(this._d(this.cq,id),{order})}/* v16: reorder is not a tracked modification (no glow) */
  async dequeue(id){await this.fs.deleteDoc(this._d(this.cq,id))}
  async setQueueStatus(id,status){const x=this.q.get(id);if(!x||(x.status||'fila')===status)return;this.q.set(id,{...x,status});this.emit();await this.fs.updateDoc(this._d(this.cq,id),{status})}/* status is not a tracked modification: no mods.* write, no glow */
  async addPhoto(folderId,blob,name=''){const id=uid();const [data,thumb]=await Promise.all([fitDataURL(blob),encodeJPEG(blob,300,.7)]);
@@ -192,7 +192,7 @@ class FirebaseStore extends BaseStore{
   this.p.set(id,{...x,note,noteMods:nm});await this.fs.updateDoc(this._d(this.cp,id),{note,noteMods:nm})}
  // v12: optional field on existing photo docs; updateDoc touches ONLY 'techniques'
  async setTechniques(id,techniques,groupedAt){const u={techniques};if(groupedAt)u.groupedAt=groupedAt;const x=this.p.get(id);const before=Array.isArray(x?.techniques)?x.techniques:[];const ch=['dtf','bordado','serigrafia','sublimacao'].filter(k=>before.includes(k)!==techniques.includes(k)).map(k=>'tech_'+k);if(!ch.length)return;
-  if(x){this.p.set(id,{...x,...u});this.emit()}await this.fs.updateDoc(this._d(this.cp,id),{...u,...this._u(...ch)})}
+  if(x){this.p.set(id,{...x,...u});this.emit()}await this.fs.updateDoc(this._d(this.cp,id),u)}/* v16: technique change is not a tracked modification (no glow) */
  async movePhoto(id,folderId){await this.fs.updateDoc(this._d(this.cp,id),{folderId,...this._u('image')})}
  async deletePhoto(id){await this._batchDelete([...this._cascadeRefs(id),...this._phRefs(this.p.get(id)||{id})]);this.full.delete(id)}
 }
@@ -356,7 +356,7 @@ let editing=false,pendingRender=false,clip=null,hoverEl=null,lastTouch=0;
 function rerenderAll(){pendingRender=false;if(document.body.classList.contains('pastas-on')){render();renderQueue();renderRel();paintUnseen()}}
 const ctx=$(`<div class="ctx glass" role="menu" hidden></div>`);document.body.append(ctx);
 const MI={copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',paste:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 10h6M9 14h6"/>',
- ren:'<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',del:'<path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15"/>',open:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="m10 11 3 2-3 2"/>'};
+ ren:'<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',del:'<path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15"/>',nfold:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M12 10v6M9 13h6"/>',open:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="m10 11 3 2-3 2"/>'};
 function showMenu(items,x,y){ctx.innerHTML='';for(const it of items){const b=$(`<button role="menuitem"${it.dis?' disabled':''} class="${it.danger?'dan':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${MI[it.ic]}</svg>${esc(it.label)}</button>`);
   b.onclick=()=>{closeCtx();if(!it.dis)it.act()};ctx.append(b)}
  ctx.hidden=false;const W=ctx.offsetWidth,H=ctx.offsetHeight;ctx.style.left=Math.max(6,Math.min(x,innerWidth-W-8))+'px';ctx.style.top=Math.max(6,Math.min(y,innerHeight-H-8))+'px'}
@@ -380,7 +380,7 @@ function openMenuFor(it,x,y){if(!it)return;const C={label:'Copiar',ic:'copy',act
  else if(it.type==='rspace')items.push({label:'Colar',ic:'paste',dis:clip?.type!=='related',act:()=>pasteRelated(relOpen)});
  else if(it.type==='q')items.push(C,{label:'Colar',ic:'paste',dis:clip?.type!=='q',act:()=>pasteQueue(it.id)},{label:'Renomear',ic:'ren',act:()=>renameItem(it)},{label:'Remover da fila',ic:'del',danger:true,act:()=>delQueue(it.id)});
  else if(it.type==='qspace')items.push({label:'Colar',ic:'paste',dis:clip?.type!=='q',act:()=>pasteQueue(null)});
- else if(it.type==='space')items.push({label:'Colar',ic:'paste',dis:!canPasteFP(),act:()=>pasteInto(cur)});
+ else if(it.type==='space'){if(!store.isHist(cur))items.push({label:'Nova pasta',ic:'nfold',act:newFolder});/* v16: same as the 'Nova pasta' tile (not inside Histórico) */items.push({label:'Colar',ic:'paste',dis:!canPasteFP(),act:()=>pasteInto(cur)})}
  else if(it.type==='msg')items.push({label:'Copiar',ic:'copy',act:()=>copyMsg(it.id)},{label:'Excluir',ic:'del',danger:true,act:()=>delMsg(it.id)});
  if(items.length)showMenu(items,x,y)}
 document.addEventListener('contextmenu',e=>{if(!document.body.classList.contains('pastas-on'))return;if(Date.now()-lastTouch<900){if(itemAt(e.target))e.preventDefault();return}
@@ -526,7 +526,9 @@ const objOf=id=>store.f.get(id)||store.p.get(id)||store.r.get(id)||store.q.get(i
 const marks=x=>[...Object.entries(x?.mods||{}).map(([k,m])=>[k,m]),...Object.entries(x?.noteMods||{}).map(([h,m])=>['n_'+h,m])];
 if(!seen){seen={};for(const x of [...store.f.values(),...store.p.values(),...store.r.values(),...store.q.values()])for(const [k,m] of marks(x)){const t=ms(m?.at);if(t)seen[x.id+'|'+k]=t}localStorage.setItem(SEEN_KEY,JSON.stringify(seen))}
 const mOf=(x,el)=>el.startsWith('n_')?x?.noteMods?.[el.slice(2)]:x?.mods?.[el];
-const U=(x,el)=>{const m=x&&mOf(x,el);return!!m&&!!m.by&&m.by!==CLIENT_ID&&ms(m.at)>(seen[x.id+'|'+el]||0)};
+/* v16: only additions glow. Queue reorders (mods.order) and technique changes (mods.tech_*) never glow, even if older data still has those marks */
+const NOGLOW=el=>el==='order'||el.startsWith('tech_');
+const U=(x,el)=>{if(NOGLOW(el))return false;const m=x&&mOf(x,el);return!!m&&!!m.by&&m.by!==CLIENT_ID&&ms(m.at)>(seen[x.id+'|'+el]||0)};
 const anyU=x=>!!x&&marks(x).some(([k])=>U(x,k));
 function markSeen(id,...els){const x=objOf(id);let ch=false;for(const el of els){const t=ms(mOf(x,el)?.at);if(t&&(seen[id+'|'+el]||0)<t){seen[id+'|'+el]=t;ch=true}}if(ch){localStorage.setItem(SEEN_KEY,JSON.stringify(seen));paintUnseen()}}
 const DBL=280;
@@ -561,7 +563,7 @@ function paintUnseen(){const inF=new Set();const up=fid=>{let c=store.f.get(fid)
   const rb=el.querySelector('.rel');rb?.classList.toggle('unseen',U(p,'related'));rb?.classList.toggle('unseen-in',!U(p,'related')&&store.related(id).some(anyU));
   const ta=el.querySelector('textarea'),nbk=el.querySelector('.nback');if(ta&&nbk)paintNote(id,ta,nbk)});
  pop.querySelectorAll('.rp-it[data-r]').forEach(el=>{const r=store.r.get(el.dataset.r);el.classList.toggle('unseen',U(r,'self'));el.querySelector('.rp-cap')?.classList.toggle('unseen',U(r,'title'))});
- qp.querySelectorAll('.q-row[data-q]').forEach(el=>{const q=store.q.get(el.dataset.q);el.classList.toggle('unseen',U(q,'self')||U(q,'order'))})}
+ qp.querySelectorAll('.q-row[data-q]').forEach(el=>{const q=store.q.get(el.dataset.q);el.classList.toggle('unseen',U(q,'self'))})}
 // acknowledge exactly the element that was clicked/tapped
 document.addEventListener('pointerdown',e=>{if(!document.body.classList.contains('pastas-on'))return;const t=e.target;if(!t.closest)return;let x;
  if(x=t.closest('.tile[data-folder]')){const id=x.dataset.folder;if(t.closest('.nm.unseen'))markSeen(id,'name');else if(x.classList.contains('unseen'))markSeen(id,'self');return}
@@ -676,7 +678,7 @@ const lenChip=mm=>mm>0?`<span class="q-len" title="Comprimento de impressão">${
 /* v15: live progress of the job printing now (machine doc: progress, pass, totalPass, copy, copies, since) */
 const LIVE=new Set(['printing','paused','testing']);
 function liveFor(name){const m=machineNow();return m&&LIVE.has(m.state)&&m.job&&name&&m.job===name?m:null}
-function progTxt(m){const pc=Math.round((m.progress||0)*100);const bits=[pc+'%'];if(m.copies>1&&m.copy)bits.push(`cópia ${m.copy}/${m.copies}`);
+function progTxt(m){const pc=Math.round((m.progress||0)*100);const bits=[pc+'%'];if(m.copies>1&&m.copy!=null)bits.push(`${m.copy}/${m.copies} cópias`);/* v16: completed copies, like PrintExp "Print Copy" */
  const t=m.since?.toMillis?m.since.toMillis():Date.parse(m.since||'');if(t){const mi=Math.max(0,Math.round((Date.now()-t)/60000));bits.push(mi<60?mi+' min':Math.floor(mi/60)+' h '+String(mi%60).padStart(2,'0')+' min')}
  if(m.state==='paused')bits.push('pausado');return bits.join(' · ')}
 const progBar=name=>{const m=liveFor(name);if(!m)return'';return`<div class="q-prog${m.state==='paused'?' paused':''}" data-job="${esc(name)}"><div class="q-bar"><i style="width:${Math.round((m.progress||0)*1000)/10}%"></i></div><span class="q-pt">${progTxt(m)}</span></div>`};

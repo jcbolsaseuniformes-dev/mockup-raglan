@@ -17,7 +17,7 @@ window.PASTAS_CONFIG={
 <script>/* v13: device class for performance tweaks (Android / low-end: lower DPR, no heavy blur) */
 (()=>{const ua=navigator.userAgent,and=/Android/i.test(ua),low=(navigator.deviceMemory&&navigator.deviceMemory<=4)||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4),mob=matchMedia('(pointer:coarse)').matches;
  window.__dev={android:and,low:!!low,mobile:mob};const c=document.documentElement.classList;if(and)c.add('android');if(and||low)c.add('lowfx');if(mob)c.add('touch')})();</script>
-<link rel="stylesheet" href="pastas.css?v=15">
+<link rel="stylesheet" href="pastas.css?v=16">
 <style>
 *{box-sizing:border-box}html,body{height:100%}
 body{margin:0;font-family:Nunito,Inter,system-ui,sans-serif;color:#e8edf5;overflow:hidden;
@@ -405,7 +405,7 @@ const TEAM_HASH='bb7cd9acd974ca7e235d2e1f7e9ac2f3e45f43abe95ad7a5010985840d68db1
 const isTeamHash=()=>location.hash.startsWith('#/pastas');
 let team=false,loaded=false;
 const sha=async t=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))].map(b=>b.toString(16).padStart(2,'0')).join('');
-async function loadPastas(){if(loaded)return;loaded=true;await import('./pastas.js?v=15')}
+async function loadPastas(){if(loaded)return;loaded=true;await import('./pastas.js?v=16')}
 function enterTeam(){if(team)return;team=true;document.body.classList.remove('client');document.body.classList.add('team')}
 function askPassword(){return new Promise(res=>{const m=document.createElement('div');m.className='gate';m.innerHTML=`<form class="gate-box glass" autocomplete="off"><div class="gate-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div><h3>Área da equipe</h3><p>Digite a senha para acessar as Pastas.</p><input type="password" placeholder="Senha" aria-label="Senha" autocomplete="current-password"><div class="gate-err" hidden>Senha incorreta</div><div class="gate-act"><button type="button" class="gate-c">Ver mockup</button><button type="submit" class="gate-ok">Entrar</button></div></form>`;
  document.body.append(m);const f=m.querySelector('form'),i=m.querySelector('input'),er=m.querySelector('.gate-err');setTimeout(()=>i.focus(),50);
