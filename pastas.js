@@ -9,7 +9,9 @@ const noteLines=n=>String(n||'').split('\n').map(l=>l.trim()).filter(Boolean);
 
 // ---------- shared in-memory cache (both adapters render from this) ----------
 class BaseStore{
- constructor(){this.f=new Map();this.p=new Map();this.r=new Map();this.q=new Map();this.subs=new Set();this.urls=new Map()}
+ constructor(){this.f=new Map();this.p=new Map();this.r=new Map();this.q=new Map();this.subs=new Set();this.urls=new Map();this.machine=null;this.msubs=new Set()}
+ onMachine(cb){this.msubs.add(cb);return()=>this.msubs.delete(cb)}
+ _setMachine(m){this.machine=m;this.msubs.forEach(cb=>cb(m))}
  onChange(cb){this.subs.add(cb);return()=>this.subs.delete(cb)}
  emit(kind='data'){this.subs.forEach(cb=>cb(kind))}
  folders(parentId=null){return[...this.f.values()].filter(x=>(x.parentId??null)===parentId).sort((a,b)=>a.createdAt-b.createdAt)}
@@ -120,7 +122,10 @@ class FirebaseStore extends BaseStore{
   const listen=(col,map)=>new Promise(res=>{let first=true;fs.onSnapshot(fs.collection(this.db,col),snap=>{let onlyNotes=true;
    snap.docChanges().forEach(ch=>{const d={id:ch.doc.id,...ch.doc.data()};if(ch.type==='removed'){map.delete(d.id);this.full.delete(d.id);onlyNotes=false}else{const old=map.get(d.id);if(!old||Object.keys(d).some(k=>k!=='note'&&d[k]!==old[k]))onlyNotes=false;map.set(d.id,d)}});
    if(first){first=false;res()}else this.emit(onlyNotes?'remote-note':'data')},err=>{console.warn('Firebase:',err.message);res()})});
-  await Promise.all([listen(this.cf,this.f),listen(this.cp,this.p),listen(this.cr,this.r),listen(this.cq,this.q)]);this.onChange(k=>{if(k==='data')this.ensureHistory()});this.ensureHistory();return this}
+  await Promise.all([listen(this.cf,this.f),listen(this.cp,this.p),listen(this.cr,this.r),listen(this.cq,this.q)]);
+  /* v15: printer state published by hosonsoft-sync (read-only here). Doc id overridable for tests via localStorage. */
+  const md=localStorage.getItem('raglan-machine-doc')||this.opts.machineDoc||'hosonsoft';
+  fs.onSnapshot(fs.doc(this.db,pre+'machine',md),sn=>this._setMachine(sn.exists()?sn.data({serverTimestamps:'estimate'}):null),err=>console.warn('machine:',err.message));this.onChange(k=>{if(k==='data')this.ensureHistory()});this.ensureHistory();return this}
  _d(col,id){return this.fs.doc(this.db,col,id)}
  _M(){return{at:this.fs.serverTimestamp(),by:CLIENT_ID}}
  _u(...els){const o={};for(const e of els)o['mods.'+e]=this._M();return o}
@@ -657,29 +662,55 @@ let qSel=null;const qMobile=()=>matchMedia('(max-width:900px)').matches;
 if(qMobile())qp.classList.add('collapsed');
 const fmtD=t=>{const d=new Date(t),z=n=>String(n).padStart(2,'0');return`${z(d.getDate())}/${z(d.getMonth()+1)} ${z(d.getHours())}:${z(d.getMinutes())}`};
 const baseName=n=>String(n||'Foto').replace(/\.[a-z0-9]{2,5}$/i,'');
-const QST=[{k:'fila',l:'Na fila'},{k:'imprimindo',l:'Imprimindo'},{k:'impresso',l:'Impresso'}];
+const QST=[{k:'fila',l:'Na fila'},{k:'imprimindo',l:'Imprimindo'},{k:'pausado',l:'Pausado'},{k:'impresso',l:'Impresso'}];
 const qst=x=>QST.find(s=>s.k===x?.status)||QST[0];
-const stBtn=x=>{const s=qst(x);return`<button type="button" class="q-st st-${s.k}" draggable="false" title="Status de impressão" aria-haspopup="listbox">${s.l}<svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>`};
-const stDD=$(`<div class="q-dd glass" role="listbox" hidden></div>`);document.body.append(stDD);let stFor=null;
-function stClose(){stDD.hidden=true;stFor=null}
-function stOpen(btn,id){if(stFor===id&&!stDD.hidden)return stClose();stFor=id;const cur=qst(store.q.get(id)).k;
- stDD.innerHTML=QST.map(s=>`<button type="button" role="option" class="q-do st-${s.k}${s.k===cur?' cur':''}" data-s="${s.k}"><i></i>${s.l}</button>`).join('');stDD.hidden=false;
- const b=btn.getBoundingClientRect(),w=stDD.offsetWidth,h=stDD.offsetHeight;let left=Math.min(b.right-w,innerWidth-w-6);left=Math.max(6,left);let top=b.bottom+4;if(top+h>innerHeight-6)top=b.top-h-4;stDD.style.left=left+'px';stDD.style.top=top+'px';
- stDD.querySelectorAll('.q-do').forEach(o=>o.onclick=async e=>{e.stopPropagation();const v=o.dataset.s;stClose();try{await store.setQueueStatus(id,v)}catch(err){console.warn(err);toast('Não foi possível alterar o status')}})}
-document.addEventListener('pointerdown',e=>{if(!stDD.hidden&&!stDD.contains(e.target)&&!e.target.closest('.q-st'))stClose()},true);
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!stDD.hidden)stClose()});
-addEventListener('resize',()=>stDD.hidden||stClose());
+/* v15: status is automatic (hosonsoft-sync) — a read-only badge, no dropdown */
+const stBadge=x=>{const s=qst(x);return`<span class="q-st st-${s.k}" title="Status automático (Hosonsoft)">${s.l}</span>`};
+/* main row: aggregate of the parts (any part started -> Imprimindo until all printed; a paused part -> Pausado) */
+const QRANK={fila:0,imprimindo:1,pausado:1,impresso:2};const rowAgg=x=>{const ps=Array.isArray(x.parts)?x.parts:[];if(!ps.length)return null;const k=ps.map(p=>p.status||'fila');if(k.includes('pausado'))return'pausado';if(k.includes('imprimindo'))return'imprimindo';if(k.every(v=>v==='impresso'))return'impresso';if(k.includes('impresso'))return'imprimindo';return'fila'};/* main-row status: aggregate of the parts, never shown lower than the saved status (same rule as the sync) */const rowStatus=x=>{const cur=x.status||'fila',a=rowAgg(x);if(!a)return cur;return (QRANK[a]??0)>=(QRANK[cur]??0)?a:cur};
+const stBtn=x=>stBadge({status:rowStatus(x)});
+const ROLE={'costas':'Costas','frente e costas':'Frente e costas','frente':'Frente','manga':'Manga','outro':'Parte'};
+/* v15: print length (sync writes lengthMm = height per copy x copies + gaps, as in Hosonsoft's "Area" panel) */
+const fmtLen=mm=>!(mm>0)?'':mm<1000?(mm/10).toFixed(1).replace('.',',')+' cm':(mm/1000).toFixed(2).replace('.',',')+' metros';
+const lenChip=mm=>mm>0?`<span class="q-len" title="Comprimento de impressão">${fmtLen(mm)}</span>`:'';
+/* v15: live progress of the job printing now (machine doc: progress, pass, totalPass, copy, copies, since) */
+const LIVE=new Set(['printing','paused','testing']);
+function liveFor(name){const m=machineNow();return m&&LIVE.has(m.state)&&m.job&&name&&m.job===name?m:null}
+function progTxt(m){const pc=Math.round((m.progress||0)*100);const bits=[pc+'%'];if(m.copies>1&&m.copy)bits.push(`cópia ${m.copy}/${m.copies}`);
+ const t=m.since?.toMillis?m.since.toMillis():Date.parse(m.since||'');if(t){const mi=Math.max(0,Math.round((Date.now()-t)/60000));bits.push(mi<60?mi+' min':Math.floor(mi/60)+' h '+String(mi%60).padStart(2,'0')+' min')}
+ if(m.state==='paused')bits.push('pausado');return bits.join(' · ')}
+const progBar=name=>{const m=liveFor(name);if(!m)return'';return`<div class="q-prog${m.state==='paused'?' paused':''}" data-job="${esc(name)}"><div class="q-bar"><i style="width:${Math.round((m.progress||0)*1000)/10}%"></i></div><span class="q-pt">${progTxt(m)}</span></div>`};
+function paintProg(){qp.querySelectorAll('.q-prog').forEach(el=>{const m=liveFor(el.dataset.job);if(!m)return;el.classList.toggle('paused',m.state==='paused');el.querySelector('i').style.width=Math.round((m.progress||0)*1000)/10+'%';el.querySelector('.q-pt').textContent=progTxt(m)})}
+let progKey='';
+const qOpen=new Set((()=>{try{return JSON.parse(sessionStorage.getItem('raglan-q-open')||'[]')}catch{return[]}})());
+const subParts=x=>{const ps=Array.isArray(x.parts)?x.parts:[];const main=ps.find(p=>p.main)||ps.find(p=>p.name===x.mainPart)||ps[0];return ps.filter(p=>p!==main)};
+const partsBtn=x=>{const sp=subParts(x);if(!sp.length)return'';const o=qOpen.has(x.id);
+ return`<button type="button" class="q-pb${o?' open':''}" draggable="false" aria-expanded="${o}" title="Outras partes deste pedido (Hosonsoft)"><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>${sp.length} parte${sp.length>1?'s':''}${sp.map(p=>`<i class="st-${qst(p).k}"></i>`).join('')}</button>`};
+const partsList=x=>{const sp=subParts(x);if(!sp.length||!qOpen.has(x.id))return'';
+ return`<div class="q-parts" data-for="${x.id}">${sp.map(p=>`<div class="q-part" title="${esc(p.name)}${p.copies>1?' — '+p.copies+' cópias':''}"><span class="q-prl">${esc(ROLE[p.role]||'Parte')}</span><span class="q-pnm">${esc(p.name)}${lenChip(p.lengthMm)}</span>${stBadge(p)}${progBar(p.name)}</div>`).join('')}</div>`};
+const mainPartName=x=>{const ps=Array.isArray(x.parts)?x.parts:[];return(ps.find(p=>p.main)||ps.find(p=>p.name===x.mainPart)||ps[0])?.name||''};
+/* v15: machine overlay — Limpando / Imprimindo teste pós limpeza; ignored when the sync is offline (updatedAt > 2 min) */
+const MLOCK={cleaning:{t:'Limpando',s:'Limpeza da cabeça em andamento'},testing:{t:'Imprimindo teste pós limpeza',s:''}};
+const MSTALE=120000;
+function machineNow(){const m=store.machine;if(!m)return null;const u=m.updatedAt;const t=u?.toMillis?u.toMillis():u?.seconds?u.seconds*1000:typeof u==='number'?u:Date.parse(u||'')||0;return t&&Date.now()-t<=MSTALE?m:null}
+function paintMachine(){const mm=machineNow();const k=mm&&LIVE.has(mm.state)?mm.state+'|'+mm.job:'';if(k!==progKey){progKey=k;if(qp.querySelector('.q-list')){renderQueue();return}}paintProg();const m=mm;const L=m&&MLOCK[m.state];qp.classList.toggle('q-locked',!!L);qp.dataset.machine=m?m.state:'offline';
+ const b=qp.querySelector('.q-banner'),c=qp.querySelector('.q-mchip');if(!b)return;b.hidden=!L;if(c)c.hidden=!L;if(!L)return;
+ const pct=m.state==='testing'&&(m.totalPass||m.totalPasses)>0?Math.round((m.progress||0)*100)+'%':'';
+ b.querySelector('b').textContent=L.t;b.querySelector('small').textContent=m.state==='testing'?[m.job,pct].filter(Boolean).join(' · '):L.s;c.textContent=m.state==='cleaning'?'Limpando':'Teste';c.className='q-mchip m-'+m.state}
+store.onMachine(paintMachine);setInterval(paintMachine,10000);
 function renderQueue(){const items=store.queueIn(cur);const sc=qp.querySelector('.q-list')?.scrollTop||0;
- qp.innerHTML=`<div class="q-head"><h2>Fila de impressão</h2><span class="q-n">${items.length} ${items.length===1?'item':'itens'}</span><span class="q-chev"></span></div>
- <div class="q-body"><div class="q-cols"><span>Nome</span><span>Status</span></div><div class="q-list">${items.map((x,i)=>{const p=store.photo(x.photoId);const f=store.folder(p.folderId);
-  return`<div class="q-row${qSel===x.id?' sel':''}" draggable="true" data-q="${x.id}" title="${esc(dispName(p))}${p.note?'\n'+esc(p.note):''}"><span class="q-i">${i+1}</span><img class="q-th" loading="lazy" decoding="async" src="${store.photoURL(p)}" alt=""><div class="q-tx"><div class="q-nm">${esc(dispName(p))}</div><div class="q-sub">${techTags(p)}<span>${esc(fName(p.folderId))}</span></div><div class="q-dt">${fmtD(x.addedAt)}</div></div>${stBtn(x)}<button class="q-x" title="Remover da fila">×</button></div>`}).join('')}</div>
+ qp.innerHTML=`<div class="q-head"><h2>Fila de impressão</h2><span class="q-mchip" hidden></span><span class="q-n">${items.length} ${items.length===1?'item':'itens'}</span><span class="q-chev"></span></div>
+ <div class="q-body"><div class="q-banner" hidden role="status" aria-live="polite"><span class="q-spin"></span><div><b></b><small></small></div></div><div class="q-cols"><span>Nome</span><span>Status</span></div><div class="q-list">${items.map((x,i)=>{const p=store.photo(x.photoId);const f=store.folder(p.folderId);
+  return`<div class="q-row${qSel===x.id?' sel':''}" draggable="true" data-q="${x.id}" title="${esc(dispName(p))}${p.note?'\n'+esc(p.note):''}"><span class="q-i">${i+1}</span><img class="q-th" loading="lazy" decoding="async" src="${store.photoURL(p)}" alt=""><div class="q-tx"><div class="q-nm">${esc(dispName(p))}</div><div class="q-sub">${techTags(p)}<span>${esc(fName(p.folderId))}</span></div><div class="q-dt">${fmtD(x.addedAt)}${lenChip(x.lengthMm)}${partsBtn(x)}</div></div>${stBtn(x)}<button class="q-x" title="Remover da fila">×</button>${progBar(mainPartName(x))}</div>${partsList(x)}`}).join('')}</div>
+ ${(()=>{const t=items.reduce((a,x)=>a+(x.lengthMm>0?x.lengthMm:0),0);const n=items.filter(x=>!(x.lengthMm>0)).length;return t>0?`<div class="q-foot"><span>Total da fila</span><b>${fmtLen(t)}</b>${n?`<small>${n} sem medida</small>`:''}</div>`:''})()}
  <div class="q-empty${items.length?' hide':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>Arraste fotos para cá para adicioná-las à fila${matchMedia('(pointer:coarse)').matches?' (toque e segure a foto)':''}.</div></div>`;
- qp.querySelector('.q-list').scrollTop=sc;if(stFor&&!store.q.get(stFor))stClose();
+ qp.querySelector('.q-list').scrollTop=sc;paintMachine();
  qp.querySelector('.q-head').onclick=()=>{if(qMobile()){qp.classList.toggle('collapsed');if(!qp.classList.contains('collapsed')&&!chatEl.classList.contains('collapsed'))chatEl.classList.add('collapsed')}};
  qp.querySelectorAll('.q-row').forEach(row=>{const x=store.q.get(row.dataset.q);
-  row.onclick=e=>{if(e.target.closest('.q-x,.q-st')||editing)return;qSel=qSel===x.id?null:x.id;qp.querySelectorAll('.q-row').forEach(r=>r.classList.toggle('sel',r.dataset.q===qSel))};
+  row.onclick=e=>{if(e.target.closest('.q-x,.q-pb')||editing||qp.classList.contains('q-locked'))return;qSel=qSel===x.id?null:x.id;qp.querySelectorAll('.q-row').forEach(r=>r.classList.toggle('sel',r.dataset.q===qSel))};
   row.ondblclick=()=>lightbox(x.photoId);
-  const sb=row.querySelector('.q-st');sb.onclick=e=>{e.stopPropagation();if(editing)return;stOpen(sb,x.id)};sb.addEventListener('pointerdown',()=>{row.draggable=false;const r=()=>{row.draggable=true;removeEventListener('pointerup',r,true);removeEventListener('pointercancel',r,true)};addEventListener('pointerup',r,true);addEventListener('pointercancel',r,true)});
+  const pb=row.querySelector('.q-pb');if(pb){pb.onclick=e=>{e.stopPropagation();if(qOpen.has(x.id))qOpen.delete(x.id);else qOpen.add(x.id);sessionStorage.setItem('raglan-q-open',JSON.stringify([...qOpen]));renderQueue()};
+   pb.addEventListener('pointerdown',e=>{e.stopPropagation();row.draggable=false;const r=()=>{row.draggable=true;removeEventListener('pointerup',r,true);removeEventListener('pointercancel',r,true)};addEventListener('pointerup',r,true);addEventListener('pointercancel',r,true)})}
   row.querySelector('.q-x').onclick=async e=>{e.stopPropagation();await store.dequeue(x.id);toast('Removido da fila')};
   dragSource(row,{type:'q',id:x.id})})}
 function qClear(){qp.classList.remove('q-hot');qp.querySelectorAll('.q-ins,.q-ins-end').forEach(x=>x.classList.remove('q-ins','q-ins-end'))}
