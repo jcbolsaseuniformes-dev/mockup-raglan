@@ -534,3 +534,21 @@ body.locked .app,body.locked #pastas{visibility:hidden}
 .q-foot small{font-size:10px;color:#7d8899}
 @media (max-width:1250px) and (min-width:901px){.q-row>.q-prog{padding-left:0}}
 @media (max-width:900px){.q-row>.q-prog{padding-left:48px}.q-pt{font-size:11px}.q-len{font-size:11px}}
+/* v17: Hosonsoft print list inside the queue panel */
+.q-hs{border-top:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;min-height:0;flex:0 1 auto;max-height:55%}
+.h-head{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px 8px;cursor:pointer;color:#dfe7f2;font:700 12.5px/1.2 Nunito,sans-serif}
+.h-head svg{width:10px;height:6px;color:#8b97a8;transition:transform .15s}.q-hs.closed .h-head svg{transform:rotate(-90deg)}
+.h-head .q-n{margin-left:auto}
+.h-dot{width:8px;height:8px;border-radius:50%;background:#64748b;flex:0 0 auto}.h-dot.on{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.7)}
+.h-list{overflow:auto;padding:0 6px 6px;min-height:0}.q-hs.closed .h-list{display:none}
+.h-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:5px 6px;border-radius:7px;position:relative}
+.h-row:hover{background:rgba(255,255,255,.04)}.h-row.done{opacity:.55}
+.h-row>.q-prog{grid-column:1/-1}
+.h-row .q-sub{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center}
+.h-cp{font-size:10px;color:#b8c7da}
+.h-link{font-size:9.5px;font-weight:700;color:#7cc4ff;border:1px solid rgba(124,196,255,.4);border-radius:5px;padding:0 4px}
+.h-empty{margin:4px 8px 8px;color:#8b97a8;font-size:11.5px;line-height:1.4}
+.h-more{all:unset;cursor:pointer;display:block;margin:4px 8px;color:#8fb8e8;font-size:11.5px;font-weight:700}
+.h-foot{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;padding:6px 8px 2px;font-size:11.5px;color:#9aa6b8}.h-foot b{color:#e8edf5}.h-foot small{margin-left:auto;font-size:10.5px}
+.q-empty.small{margin:8px 14px;padding:8px 10px;flex-direction:row;font-size:11px}.q-empty.small svg{width:18px;height:18px}
+@media (max-width:900px){.h-head{padding:12px 14px;font-size:13.5px}.h-row{padding:7px 6px}.q-hs{max-height:none}}

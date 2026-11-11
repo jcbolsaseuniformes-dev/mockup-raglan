@@ -4,13 +4,21 @@ const CFG=window.PASTAS_CONFIG||{};
 const uid=()=>(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));
 // v12: persistent per-browser id (used for per-element 'unseen change' highlights and chat authorship)
 const CLIENT_ID=localStorage.getItem('raglan-client-id')||(()=>{const v=uid();localStorage.setItem('raglan-client-id',v);return v})();
+/* v17: today in São Paulo -> {key:'2026-11-11', ym:'2026-11', day:'11 - 11 - 26', month:'Nov - 2026'} */
+const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+function spDay(t=Date.now()){const o=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(t)).map(x=>[x.type,x.value]));
+ return{key:`${o.year}-${o.month}-${o.day}`,ym:`${o.year}-${o.month}`,day:`${o.day} - ${o.month} - ${o.year.slice(2)}`,month:`${MESES[+o.month-1]} - ${o.year}`}}
+window.__spDay=spDay;
 const lineHash=t=>{let h=5381;for(let i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))|0;return(h>>>0).toString(36)};
 const noteLines=n=>String(n||'').split('\n').map(l=>l.trim()).filter(Boolean);
 
 // ---------- shared in-memory cache (both adapters render from this) ----------
 class BaseStore{
- constructor(){this.f=new Map();this.p=new Map();this.r=new Map();this.q=new Map();this.subs=new Set();this.urls=new Map();this.machine=null;this.msubs=new Set()}
+ constructor(){this.f=new Map();this.p=new Map();this.r=new Map();this.q=new Map();this.subs=new Set();this.urls=new Map();this.machine=null;this.msubs=new Set();this.plist=null;this.psubs=new Set()}
  onMachine(cb){this.msubs.add(cb);return()=>this.msubs.delete(cb)}
+ /* v17: Hosonsoft print list (machine/hosonsoft-fila, published by hosonsoft-sync; read-only here) */
+ onPList(cb){this.psubs.add(cb);return()=>this.psubs.delete(cb)}
+ _setPList(l){this.plist=l;this.psubs.forEach(cb=>cb(l))}
  _setMachine(m){this.machine=m;this.msubs.forEach(cb=>cb(m))}
  onChange(cb){this.subs.add(cb);return()=>this.subs.delete(cb)}
  emit(kind='data'){this.subs.forEach(cb=>cb(kind))}
@@ -118,15 +126,36 @@ class FirebaseStore extends BaseStore{
   const [{initializeApp},fs]=await Promise.all([import(B+'firebase-app.js'),import(B+'firebase-firestore.js')]);
   this.fs=fs;const app=initializeApp(this.cfg,'pastas');
   if(this.opts.anonymousAuth){const au=await import(B+'firebase-auth.js');await au.signInAnonymously(au.getAuth(app))}
-  this.db=fs.getFirestore(app);const pre=this.opts.prefix||'';this.cf=pre+'folders';this.cp=pre+'photos';this.cd=pre+'photoData';this.cr=pre+'relatedPhotos';this.cq=pre+'printQueue';
+  this.db=fs.getFirestore(app);{const emu=localStorage.getItem('raglan-emu');if(emu){const[h,pt]=emu.split(':');fs.connectFirestoreEmulator(this.db,h,+pt)}}/* v17: tests only */const pre=this.opts.prefix||'';this.cf=pre+'folders';this.cp=pre+'photos';this.cd=pre+'photoData';this.cr=pre+'relatedPhotos';this.cq=pre+'printQueue';
   const listen=(col,map)=>new Promise(res=>{let first=true;fs.onSnapshot(fs.collection(this.db,col),snap=>{let onlyNotes=true;
    snap.docChanges().forEach(ch=>{const d={id:ch.doc.id,...ch.doc.data()};if(ch.type==='removed'){map.delete(d.id);this.full.delete(d.id);onlyNotes=false}else{const old=map.get(d.id);if(!old||Object.keys(d).some(k=>k!=='note'&&d[k]!==old[k]))onlyNotes=false;map.set(d.id,d)}});
-   if(first){first=false;res()}else this.emit(onlyNotes?'remote-note':'data')},err=>{console.warn('Firebase:',err.message);res()})});
+   if(first){first=false;res()}else this.emit(onlyNotes?'remote-note':'data')},err=>{console.warn('Firebase:',err.message);this._lerr=true;res()})});
   await Promise.all([listen(this.cf,this.f),listen(this.cp,this.p),listen(this.cr,this.r),listen(this.cq,this.q)]);
   /* v15: printer state published by hosonsoft-sync (read-only here). Doc id overridable for tests via localStorage. */
   const md=localStorage.getItem('raglan-machine-doc')||this.opts.machineDoc||'hosonsoft';
-  fs.onSnapshot(fs.doc(this.db,pre+'machine',md),sn=>this._setMachine(sn.exists()?sn.data({serverTimestamps:'estimate'}):null),err=>console.warn('machine:',err.message));this.onChange(k=>{if(k==='data')this.ensureHistory()});this.ensureHistory();return this}
+  fs.onSnapshot(fs.doc(this.db,pre+'machine',md),sn=>this._setMachine(sn.exists()?sn.data({serverTimestamps:'estimate'}):null),err=>console.warn('machine:',err.message));
+  const ld=localStorage.getItem('raglan-plist-doc')||this.opts.plistDoc||'hosonsoft-fila';
+  fs.onSnapshot(fs.doc(this.db,pre+'machine',ld),sn=>this._setPList(sn.exists()?sn.data({serverTimestamps:'estimate'}):null),err=>console.warn('fila hosonsoft:',err.message));
+  this.cad=pre+'autoDays';this.ensureToday();setInterval(()=>this.ensureToday(),60000);
+  this.onChange(k=>{if(k==='data')this.ensureHistory()});this.ensureHistory();return this}
  _d(col,id){return this.fs.doc(this.db,col,id)}
+ /* v17: pasta do dia. Root month folder "Nov - 2026" + day folder "11 - 11 - 26" (São Paulo date), created once per day by
+    whichever client (or hosonsoft-sync on the PC) gets there first. autoDays/<yyyy-mm-dd> marks the day as done, so a folder
+    that was renamed, moved or deleted by hand is never re-created. Deterministic ids + transaction => no duplicates with
+    several devices. Only runs when every listener loaded from the server (never on partial/failed data). NEVER deletes anything. */
+ async ensureToday(){if(this._et||this._lerr||localStorage.getItem('raglan-autoday-off'))return;const k=spDay();if(this._etDone===k.key)return;this._et=true;
+  const fs=this.fs,mref=this._d(this.cad,k.key);
+  try{await fs.runTransaction(this.db,async tx=>{const mk=await tx.get(mref);if(mk.exists())return;
+    const live=f=>f&&!f.isHistory;let mid=([...this.f.values()].find(f=>live(f)&&!f.parentId&&f.name===k.month)||{}).id,newM=null,newD=null;
+    if(!mid){mid='mes_'+k.ym;const ms=await tx.get(this._d(this.cf,mid));if(!ms.exists())newM={name:k.month,parentId:null,createdAt:Date.now(),auto:true}}
+    const did='dia_'+k.key;let dayId=([...this.f.values()].find(f=>live(f)&&f.name===k.day)||{}).id;
+    if(!dayId){const ds=await tx.get(this._d(this.cf,did));if(!ds.exists())newD={name:k.day,parentId:mid,createdAt:Date.now()+1,auto:true};dayId=did}
+    const hist=(id,x)=>tx.set(this._d(this.cf,'hist_'+id),{name:'Histórico',parentId:id,isHistory:true,createdAt:x.createdAt+1});
+    if(newM){tx.set(this._d(this.cf,mid),newM);hist(mid,newM)}
+    if(newD){tx.set(this._d(this.cf,did),newD);hist(did,newD)}
+    tx.set(mref,{day:k.day,month:k.month,folderId:dayId,monthId:mid,created:!!newD,by:'site:'+CLIENT_ID,at:fs.serverTimestamp()})});
+   this._etDone=k.key}catch(e){console.warn('Pasta do dia:',e.message)}finally{this._et=false}}
+
  _M(){return{at:this.fs.serverTimestamp(),by:CLIENT_ID}}
  _u(...els){const o={};for(const e of els)o['mods.'+e]=this._M();return o}
  async _batchDelete(refs){for(let i=0;i<refs.length;i+=450){const b=this.fs.writeBatch(this.db);refs.slice(i,i+450).forEach(r=>b.delete(r));await b.commit()}}
@@ -695,18 +724,37 @@ const mainPartName=x=>{const ps=Array.isArray(x.parts)?x.parts:[];return(ps.find
 const MLOCK={cleaning:{t:'Limpando',s:'Limpeza da cabeça em andamento'},testing:{t:'Imprimindo teste pós limpeza',s:''}};
 const MSTALE=120000;
 function machineNow(){const m=store.machine;if(!m)return null;const u=m.updatedAt;const t=u?.toMillis?u.toMillis():u?.seconds?u.seconds*1000:typeof u==='number'?u:Date.parse(u||'')||0;return t&&Date.now()-t<=MSTALE?m:null}
-function paintMachine(){const mm=machineNow();const k=mm&&LIVE.has(mm.state)?mm.state+'|'+mm.job:'';if(k!==progKey){progKey=k;if(qp.querySelector('.q-list')){renderQueue();return}}paintProg();const m=mm;const L=m&&MLOCK[m.state];qp.classList.toggle('q-locked',!!L);qp.dataset.machine=m?m.state:'offline';
+function paintMachine(){const mm=machineNow();const k=mm&&LIVE.has(mm.state)?mm.state+'|'+mm.job:'';if(k!==progKey){progKey=k;if(qp.querySelector('.q-list')){renderQueue();return}}paintProg();qp.querySelector('.h-dot')?.classList.toggle('on',!!mm);const m=mm;const L=m&&MLOCK[m.state];qp.classList.toggle('q-locked',!!L);qp.dataset.machine=m?m.state:'offline';
  const b=qp.querySelector('.q-banner'),c=qp.querySelector('.q-mchip');if(!b)return;b.hidden=!L;if(c)c.hidden=!L;if(!L)return;
  const pct=m.state==='testing'&&(m.totalPass||m.totalPasses)>0?Math.round((m.progress||0)*100)+'%':'';
  b.querySelector('b').textContent=L.t;b.querySelector('small').textContent=m.state==='testing'?[m.job,pct].filter(Boolean).join(' · '):L.s;c.textContent=m.state==='cleaning'?'Limpando':'Teste';c.className='q-mchip m-'+m.state}
 store.onMachine(paintMachine);setInterval(paintMachine,10000);
+
+/* v17: "Na impressora (Hosonsoft)" — the PrintExp print list as published by hosonsoft-sync (machine/hosonsoft-fila), shown
+   in every folder's queue panel even when nothing from the site was added to the queue. Read-only. */
+const tsMs=u=>u?.toMillis?u.toMillis():u?.seconds?u.seconds*1000:typeof u==='number'?u:Date.parse(u||'')||0;
+let hsOpen=localStorage.getItem('raglan-hs-open')!=='0',hsDone=sessionStorage.getItem('raglan-hs-done')==='1';
+function hsRow(j,i){const nm=String(j.name||'').replace(/\.prt$/i,'');const st=QST.some(x=>x.k===j.status)?j.status:'fila';
+ return`<div class="h-row${st==='impresso'?' done':''}" title="${esc(nm)}${j.folder?'\nPasta: '+esc(j.folder):''}"><span class="q-i">${i}</span><div class="q-tx"><div class="q-nm">${esc(nm)}</div><div class="q-sub">${j.folder?`<span>${esc(j.folder)}</span>`:''}${j.copies>1?`<span class="h-cp">${j.copies} cópias</span>`:''}${lenChip(j.lengthMm)}${j.linked?'<span class="h-link" title="Este trabalho também está na fila do site">no site</span>':''}</div></div>${stBadge({status:st})}${progBar(nm)}</div>`}
+function hsHTML(){if(store.kind!=='firebase')return'';const L=store.plist,on=!!machineNow();
+ const jobs=Array.isArray(L?.jobs)?L.jobs:[];const act=jobs.filter(j=>j.status!=='impresso'),done=jobs.filter(j=>j.status==='impresso');
+ const tot=act.reduce((a,j)=>a+(j.lengthMm>0?j.lengthMm:0),0);const up=tsMs(L?.updatedAt);
+ const body=!L?`<div class="h-empty">A lista da impressora aparece aqui quando a sincronização do PC da impressora estiver ligada.</div>`
+  :`${act.length?act.map((j,i)=>hsRow(j,i+1)).join(''):'<div class="h-empty">Nenhum trabalho aguardando na impressora.</div>'}
+   ${done.length?`<button type="button" class="h-more">${hsDone?'Ocultar':'Mostrar'} ${done.length} já impresso${done.length>1?'s':''}</button>${hsDone?done.map((j,i)=>hsRow(j,act.length+i+1)).join(''):''}`:''}
+   <div class="h-foot">${tot>0?`<span>Total aguardando</span><b>${fmtLen(tot)}</b>`:''}<small>${on?'ao vivo':'sincronização desligada'}${up?' · atualizado '+fmtD(up):''}</small></div>`;
+ return`<div class="q-hs${hsOpen?'':' closed'}"><button type="button" class="h-head" aria-expanded="${hsOpen}"><i class="h-dot${on?' on':''}"></i><b>Na impressora</b><span class="q-n">${L?act.length+' aguardando':''}</span><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button><div class="h-list">${body}</div></div>`}
+function hsWire(){const h=qp.querySelector('.q-hs');if(!h)return;h.querySelector('.h-head').onclick=e=>{e.stopPropagation();hsOpen=!hsOpen;localStorage.setItem('raglan-hs-open',hsOpen?'1':'0');renderQueue()};
+ const m=h.querySelector('.h-more');if(m)m.onclick=e=>{e.stopPropagation();hsDone=!hsDone;sessionStorage.setItem('raglan-hs-done',hsDone?'1':'0');renderQueue()}}
+store.onPList(()=>{if(!document.body.classList.contains('pastas-on'))return;if(editing){pendingRender=true;return}renderQueue()});
 function renderQueue(){const items=store.queueIn(cur);const sc=qp.querySelector('.q-list')?.scrollTop||0;
  qp.innerHTML=`<div class="q-head"><h2>Fila de impressão</h2><span class="q-mchip" hidden></span><span class="q-n">${items.length} ${items.length===1?'item':'itens'}</span><span class="q-chev"></span></div>
  <div class="q-body"><div class="q-banner" hidden role="status" aria-live="polite"><span class="q-spin"></span><div><b></b><small></small></div></div><div class="q-cols"><span>Nome</span><span>Status</span></div><div class="q-list">${items.map((x,i)=>{const p=store.photo(x.photoId);const f=store.folder(p.folderId);
   return`<div class="q-row${qSel===x.id?' sel':''}" draggable="true" data-q="${x.id}" title="${esc(dispName(p))}${p.note?'\n'+esc(p.note):''}"><span class="q-i">${i+1}</span><img class="q-th" loading="lazy" decoding="async" src="${store.photoURL(p)}" alt=""><div class="q-tx"><div class="q-nm">${esc(dispName(p))}</div><div class="q-sub">${techTags(p)}<span>${esc(fName(p.folderId))}</span></div><div class="q-dt">${fmtD(x.addedAt)}${lenChip(x.lengthMm)}${partsBtn(x)}</div></div>${stBtn(x)}<button class="q-x" title="Remover da fila">×</button>${progBar(mainPartName(x))}</div>${partsList(x)}`}).join('')}</div>
+ ${hsHTML()}
  ${(()=>{const t=items.reduce((a,x)=>a+(x.lengthMm>0?x.lengthMm:0),0);const n=items.filter(x=>!(x.lengthMm>0)).length;return t>0?`<div class="q-foot"><span>Total da fila</span><b>${fmtLen(t)}</b>${n?`<small>${n} sem medida</small>`:''}</div>`:''})()}
- <div class="q-empty${items.length?' hide':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>Arraste fotos para cá para adicioná-las à fila${matchMedia('(pointer:coarse)').matches?' (toque e segure a foto)':''}.</div></div>`;
- qp.querySelector('.q-list').scrollTop=sc;paintMachine();
+ <div class="q-empty${items.length?' hide':''}${store.plist?' small':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>Arraste fotos para cá para adicioná-las à fila${matchMedia('(pointer:coarse)').matches?' (toque e segure a foto)':''}.</div></div>`;
+ qp.querySelector('.q-list').scrollTop=sc;hsWire();paintMachine();
  qp.querySelector('.q-head').onclick=()=>{if(qMobile()){qp.classList.toggle('collapsed');if(!qp.classList.contains('collapsed')&&!chatEl.classList.contains('collapsed'))chatEl.classList.add('collapsed')}};
  qp.querySelectorAll('.q-row').forEach(row=>{const x=store.q.get(row.dataset.q);
   row.onclick=e=>{if(e.target.closest('.q-x,.q-pb')||editing||qp.classList.contains('q-locked'))return;qSel=qSel===x.id?null:x.id;qp.querySelectorAll('.q-row').forEach(r=>r.classList.toggle('sel',r.dataset.q===qSel))};
