@@ -401,7 +401,7 @@ window.__order={askCompany};
 /* v13: client link (/, #/mockup) = Mockup only; team link (#/pastas...) = tabs + password.
    Convenience lock only (static site; anyone who reads this code can bypass it) — not real security.
    Only a salted SHA-256 of the password is stored here, never the password itself. */
-const TEAM_HASH='bb7cd9acd974ca7e235d2e1f7e9ac2f3e45f43abe95ad7a5010985840d68db17',SALT='mockup-raglan|jcbolsas|equipe|',KEY='raglan-team-unlock';
+const TEAM_HASH='45ca63502d8fd20eaf1e4cf0854055f2108104e992a5cc45414d7f63b421d651',SALT='mockup-raglan|jcbolsas|equipe|',KEY='raglan-team-unlock';
 const isTeamHash=()=>location.hash.startsWith('#/pastas');
 let team=false,loaded=false;
 const sha=async t=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))].map(b=>b.toString(16).padStart(2,'0')).join('');
