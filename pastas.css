@@ -635,3 +635,49 @@ body.aic-open{overflow:hidden}
  body.kb-open .aic-ref{height:12vh}
 }
 .lowfx .aic-top{backdrop-filter:none}
+/* v18b: Vectorizer.AI (3ª opção do seletor redondo) */
+.aic-comp{position:relative}
+.aic-pm{position:absolute;left:4px;bottom:calc(100% + 8px);display:flex;gap:8px;padding:8px;border-radius:30px;background:#1b1f27;border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 30px rgba(0,0,0,.45);z-index:5}
+.aic-pm[hidden]{display:none}
+.aic-pm button{width:46px;height:46px;border-radius:50%;cursor:pointer;font:800 11.5px/1 Nunito,sans-serif;color:#fff;border:2px solid transparent;display:flex;align-items:center;justify-content:center;transition:transform .12s}
+.aic-pm button:active{transform:scale(.92)}
+.aic-pm .p-gpt{background:#10a37f;border-color:#6ee7b7}.aic-pm .p-grok{background:#000;border-color:#e5e7eb}.aic-pm .p-vec{background:#4876ff;border-color:#c7d2fe}
+.aic-pm button.on{outline:3px solid rgba(255,255,255,.85);outline-offset:2px}
+.aic-vec{flex:1;display:flex;flex-direction:column;min-height:0;padding:10px 14px 12px;gap:8px}
+.aic-vec[hidden],.aic-ov.vec-on .aic-list,.aic-ov.vec-on .aic-warn,.aic-ov.vec-on .aic-pend,.aic-ov.vec-on .aic-comp{display:none!important}
+.aic-vbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.aic-vsp{flex:1}
+.aic-vt{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:64px;padding:7px 8px 6px;border-radius:12px;border:1px solid transparent;background:none;color:#e5e7eb;font:700 11.5px Nunito,sans-serif;cursor:pointer}
+.aic-vt svg{width:22px;height:22px}
+.aic-vt:hover:not(:disabled){background:rgba(255,255,255,.08)}
+.aic-vt[aria-pressed=true]{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22);color:#fff}
+.aic-vt:disabled{opacity:.38;cursor:default}
+.aic-vopt{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:7px 10px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e5e7eb;font:600 13px Nunito,sans-serif}
+.aic-vopt[hidden]{display:none}
+.aic-vck{display:flex;align-items:center;gap:6px;cursor:pointer}.aic-vck input{width:17px;height:17px;accent-color:#4876ff}
+.aic-vseg{display:flex;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.2)}
+.aic-vseg button{padding:5px 11px;background:none;border:0;color:#d1d5db;font:700 12.5px Nunito,sans-serif;cursor:pointer}.aic-vseg button.on{background:#fff;color:#111}
+.aic-vgo{padding:6px 14px;border-radius:10px;border:0;background:#fff;color:#111;font:800 12.5px Nunito,sans-serif;cursor:pointer}
+.aic-vun{width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:none;color:#e5e7eb;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:auto}.aic-vun svg{width:17px;height:17px}
+.aic-vhint{font-weight:700;color:#9ca3af}
+.aic-vsw{display:flex;gap:7px;flex-wrap:wrap}
+.aic-vsw button{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:var(--c);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.aic-vsw button span{font:800 11px Nunito,sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 2px #000}
+.aic-vsw button.on{border-color:#fff;box-shadow:0 0 0 2px #4876ff}
+.aic-vview{position:relative;flex:1;min-height:0;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.12);
+ background:#fff repeating-conic-gradient(#e5e7eb 0 25%,#fff 0 50%) 0 0/22px 22px;display:flex;align-items:center;justify-content:center}
+.aic-vview img{max-width:100%;max-height:100%;object-fit:contain;cursor:zoom-in}
+.aic-vview img[hidden]{display:none}
+.aic-vbusy{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(15,17,22,.55);color:#fff;font:700 14px Nunito,sans-serif}
+.aic-vbusy[hidden]{display:none}
+.aic-vbusy i{width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;animation:aicspin .8s linear infinite}
+@keyframes aicspin{to{transform:rotate(360deg)}}
+.aic-vmsg{position:absolute;left:12px;right:12px;bottom:12px;padding:9px 12px;border-radius:12px;font:600 13px/1.45 Nunito,sans-serif}
+.aic-vmsg[hidden]{display:none}
+.aic-vmsg.warn{background:rgba(31,24,10,.94);border:1px solid rgba(245,158,11,.55);color:#fde68a}.aic-vmsg.ok{background:rgba(6,40,27,.94);border:1px solid rgba(16,163,127,.6);color:#a7f3d0}
+.aic-vfoot{display:flex;align-items:center;gap:10px;color:#9ca3af;font:600 12px Nunito,sans-serif}
+.aic-vfoot small{flex:1}
+.aic-vre{padding:5px 11px;border-radius:9px;border:1px solid rgba(255,255,255,.2);background:none;color:#e5e7eb;font:700 12px Nunito,sans-serif;cursor:pointer}.aic-vre:disabled{opacity:.4}
+.aic-file{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:6px 11px;border-radius:10px;background:rgba(72,118,255,.18);border:1px solid rgba(72,118,255,.5);color:#dbe4ff;font:700 12.5px Nunito,sans-serif;text-decoration:none}.aic-file svg{width:15px;height:15px}
+.aic-m.p-vec .aic-who{color:#93b0ff}
+@media (max-width:640px){.aic-vec{padding:8px 8px 10px}.aic-vt{min-width:54px;padding:6px 4px;font-size:10.5px}.aic-vt svg{width:21px;height:21px}.aic-vopt{gap:8px;font-size:12.5px}.aic-vsw button{width:32px;height:32px}}
