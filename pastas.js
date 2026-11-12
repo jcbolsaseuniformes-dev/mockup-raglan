@@ -295,13 +295,14 @@ main.classList.toggle('in-hist',inHist);root.classList.toggle('at-root',!cur);/*
  const gi=p=>{const on=techOf(p);const i=TECH.findIndex(t=>on.includes(t.k));return i<0?TECH.length:i};
  const tk=p=>p.groupedAt||p.createdAt||0;const sorted=store.photos(cur).map((p,i)=>({p,i,g:gi(p)})).sort((a,b)=>a.g-b.g||tk(b.p)-tk(a.p)||b.i-a.i);const anyG=sorted.some(x=>x.g<TECH.length);let lastG=-1;
  for(const {p,g} of sorted){const open=!closedNotes.has(p.id);const grpLbl=anyG&&g!==lastG?(g<TECH.length?`<span class="grp-lbl" style="--tc:${TECH[g].c}"><i></i>${TECH[g].n}</span>`:`<span class="grp-lbl none"><i></i>Sem técnica</span>`):'';lastG=g;
-  const e=$(`<div class="ph${grpLbl?' grp-start':''}" style="--gc:${g<TECH.length?TECH[g].c:'rgba(255,255,255,.18)'}" draggable="true" data-photo="${p.id}">${grpLbl}${techBar(p)}<div class="frame"><img alt="" loading="lazy" decoding="async" src="${store.photoURL(p)}"></div><button class="plus${open?' open':''}${p.note?' has':''}" title="Anotações (clique duplo para ampliar)">+</button>${relBtn(p.id)}
+  const e=$(`<div class="ph${grpLbl?' grp-start':''}" style="--gc:${g<TECH.length?TECH[g].c:'rgba(255,255,255,.18)'}" draggable="true" data-photo="${p.id}">${grpLbl}${techBar(p)}<div class="frame"><img alt="" loading="lazy" decoding="async" src="${store.photoURL(p)}"></div><button class="plus${open?' open':''}${p.note?' has':''}" title="Anotações (clique duplo para ampliar)">+</button><button class="aic" title="Conversar com o ChatGPT / Grok sobre esta imagem" aria-label="Chat com IA">${AIC_IC}</button>${relBtn(p.id)}
    <div class="pnm" title="${esc(dispName(p))}">${esc(dispName(p))}</div><div class="note${open?' open':''}"><div class="nwrap"><div class="nback" aria-hidden="true"></div><textarea data-note="${p.id}" placeholder="Anotações sobre a foto…">${esc(p.note||'')}</textarea></div><div class="saved"></div></div></div>`);
   e.querySelector('.frame').onclick=()=>{if(!editing)lightbox(p.id)};
   const pl=e.querySelector('.plus'),nb=e.querySelector('.note'),ta=e.querySelector('textarea'),sv=e.querySelector('.saved');
   const toggleNote=()=>{const o=closedNotes.has(p.id);o?closedNotes.delete(p.id):closedNotes.add(p.id);saveClosed();nb.classList.toggle('open',o);pl.classList.toggle('open',o);if(o)setTimeout(()=>ta.focus(),200)};
   /* single click toggles (delayed so a double click/tap does not also toggle); double click/tap opens the large note window */
   pl.onclick=ev=>{ev.stopPropagation();dblTap(pl,toggleNote,()=>noteBig(p.id))};pl.draggable=false;
+  {const ai=e.querySelector('.aic');ai.draggable=false;ai.onclick=ev=>{ev.stopPropagation();openAI(p)}}/* v18: chat IA do cartão (separado do chat principal) */
   const nbk=e.querySelector('.nback');ta.addEventListener('scroll',()=>{nbk.scrollTop=ta.scrollTop});
   ta.addEventListener('click',()=>ackNoteLine(p.id,ta));
   let tm;ta.oninput=()=>{paintNote(p.id,ta,nbk);sv.textContent='…';clearTimeout(tm);tm=setTimeout(async()=>{await store.updateNote(p.id,ta.value);pl.classList.toggle('has',!!ta.value);sv.textContent='Salvo ✓'},400)};
@@ -375,6 +376,9 @@ async function newFolder(){const name=await modal({title:'Nova pasta',input:true
 const fileIn=$(`<input type="file" accept="image/*" multiple hidden>`);document.body.append(fileIn);fileIn.onchange=()=>{upload(fileIn.files);fileIn.value=''};
 async function upload(files){const list=[...files].filter(f=>f.type.startsWith('image/'));if(!list.length)return toast('Selecione arquivos de imagem');const target=cur;let ok=0;
  for(const f of list){try{await store.addPhoto(target,await compress(f),f.name);ok++}catch(e){console.warn(e)}}toast(`${ok} foto${ok===1?'':'s'} enviada${ok===1?'':'s'}`)}
+/* v18: chat IA por cartão (aichat.js carregado só quando usado) */
+const AIC_IC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z"/></svg>';
+async function openAI(p){if(editing)return;try{const m=await import('./aichat.js?v=18');const f=store.folder(store.homeOf?store.homeOf(p.id):p.folderId);m.openAIChat({store,photo:p,name:dispName(p),folderName:f?f.name:'',clientId:CLIENT_ID})}catch(e){console.warn('chat IA:',e);toast('Não consegui abrir o chat da IA')}}
 function lightbox(id){const p=typeof id==='object'?id:store.photo(id);if(!p)return;const lb=$(`<div class="lb"><button class="x" title="Fechar">×</button><img src="${store.photoURL(p)}">${p.note?`<div class="cap">${esc(p.note)}</div>`:''}</div>`);
  const close=()=>{lb.remove();document.removeEventListener('keydown',k)};const k=e=>{if(e.key==='Escape')close()};lb.onclick=e=>{if(e.target!==lb.querySelector('img'))close()};document.addEventListener('keydown',k);document.body.append(lb);store.fullURL(p).then(u=>{if(u)lb.querySelector('img').src=u}).catch(()=>{})}
 

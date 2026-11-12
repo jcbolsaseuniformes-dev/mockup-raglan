@@ -552,3 +552,86 @@ body.locked .app,body.locked #pastas{visibility:hidden}
 .h-foot{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;padding:6px 8px 2px;font-size:11.5px;color:#9aa6b8}.h-foot b{color:#e8edf5}.h-foot small{margin-left:auto;font-size:10.5px}
 .q-empty.small{margin:8px 14px;padding:8px 10px;flex-direction:row;font-size:11px}.q-empty.small svg{width:18px;height:18px}
 @media (max-width:900px){.h-head{padding:12px 14px;font-size:13.5px}.h-row{padding:7px 6px}.q-hs{max-height:none}}
+
+/* ===== v18: botão "chat IA" ao lado do (+), os dois centralizados e afastados (evita clique errado) ===== */
+.ph .plus{left:calc(50% - 22px)}
+.ph .aic{position:absolute;top:127px;left:calc(50% + 22px);transform:translateX(-50%);width:24px;height:24px;border-radius:50%;border:2px solid #0f1520;padding:0;cursor:pointer;z-index:2;
+ display:flex;align-items:center;justify-content:center;color:#fff;background:linear-gradient(180deg,#8b5cf6,#6d28d9);box-shadow:0 0 10px rgba(139,92,246,.6);transition:transform .15s,box-shadow .15s}
+.ph .aic svg{width:13px;height:13px}
+.ph .aic:hover{transform:translateX(-50%) scale(1.1);box-shadow:0 0 0 2px rgba(255,255,255,.3),0 0 14px rgba(139,92,246,.8)}
+@media (max-width:900px){.ph .plus{left:calc(50% - 26px)}.ph .aic{top:105px;left:calc(50% + 26px);width:32px;height:32px}.ph .aic svg{width:16px;height:16px}}
+
+/* ===== v18: janela do chat IA (tela cheia) ===== */
+body.aic-open{overflow:hidden}
+.aic-ov{position:fixed;inset:0;z-index:150;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0;backdrop-filter:none;background:linear-gradient(180deg,#0d121b,#080b11);color:#e8edf5;font-family:Nunito,sans-serif;animation:fade .15s}
+.aic-top{display:flex;align-items:center;gap:12px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));border-bottom:1px solid rgba(255,255,255,.08);background:rgba(18,24,36,.9)}
+.aic-th{width:40px;height:40px;border-radius:9px;object-fit:cover;border:2px solid #2f8cff;flex:none}
+.aic-t{display:flex;flex-direction:column;min-width:0;flex:1}.aic-t b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.aic-t span{font-size:12px;color:#8d99ab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aic-st{display:flex;align-items:center;gap:7px;font-size:12px;color:#aab4c4;padding:5px 10px;border-radius:20px;background:rgba(255,255,255,.05);white-space:nowrap;max-width:46vw;overflow:hidden;text-overflow:ellipsis}
+.aic-st i{width:9px;height:9px;border-radius:50%;background:#6b7280;flex:none}.aic-st.on i{background:#22c55e;box-shadow:0 0 8px #22c55e}.aic-st.warn i{background:#f59e0b;box-shadow:0 0 8px #f59e0b}.aic-st.wait i{background:#60a5fa;animation:aicpulse 1s infinite}.aic-st.off i{background:#ef4444}
+.aic-st span{overflow:hidden;text-overflow:ellipsis}
+@keyframes aicpulse{50%{opacity:.3}}
+.aic-x{width:38px;height:38px;border-radius:50%;cursor:pointer;color:#fff;font-size:22px;line-height:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);flex:none}
+.aic-x:hover{background:rgba(255,255,255,.16)}
+.aic-body{flex:1;display:flex;min-height:0}
+.aic-ref{flex:0 0 38%;max-width:560px;display:flex;align-items:center;justify-content:center;padding:18px;position:relative;border-right:1px solid rgba(255,255,255,.06);background:radial-gradient(ellipse at center,rgba(47,140,255,.08),transparent 70%);cursor:zoom-in}
+.aic-ref img{max-width:100%;max-height:100%;object-fit:contain;border-radius:12px;border:2px solid #2f8cff;box-shadow:0 0 30px rgba(40,130,255,.25);background:repeating-conic-gradient(#1a2130 0 25%,#141a26 0 50%) 0 0/16px 16px}
+.aic-ref-l{position:absolute;top:10px;left:14px;font-size:11px;font-weight:700;letter-spacing:.4px;color:#8fb8ef;text-transform:uppercase}
+.aic-chat{flex:1;display:flex;flex-direction:column;min-width:0;max-width:980px;margin:0 auto;width:100%}
+.aic-list{flex:1;overflow-y:auto;padding:18px 18px 8px;display:flex;flex-direction:column;gap:14px;overscroll-behavior:contain}
+.aic-empty{margin:auto;text-align:center;color:#8d99ab;display:flex;flex-direction:column;align-items:center;gap:6px;max-width:340px;font-size:14px}
+.aic-empty svg{width:42px;height:42px;color:#8b5cf6;opacity:.8}.aic-empty b{color:#dfe6f1}
+.aic-m{display:flex;flex-direction:column;max-width:82%}
+.aic-m.u{align-self:flex-end;align-items:flex-end}.aic-m.a{align-self:flex-start}
+.aic-m small{font-size:10.5px;color:#6f7b8e;margin-top:3px;padding:0 4px}
+.aic-who{font-size:11px;font-weight:700;color:#8d99ab;margin:0 0 3px 4px}.aic-m.p-gpt .aic-who{color:#34d399}.aic-m.p-grok .aic-who{color:#e5e7eb}
+.aic-b{padding:10px 13px;border-radius:16px;font-size:14px;line-height:1.5;word-wrap:break-word;overflow-wrap:anywhere}
+.aic-m.u .aic-b{background:linear-gradient(180deg,#2f7de8,#1f62c9);border-bottom-right-radius:5px;color:#fff}
+.aic-m.a .aic-b{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-bottom-left-radius:5px}
+.aic-m.err .aic-b{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#fecaca}
+.aic-b pre{background:rgba(0,0,0,.35);padding:8px 10px;border-radius:8px;overflow-x:auto;font-size:12.5px;margin:6px 0;white-space:pre}
+.aic-b code{background:rgba(0,0,0,.3);padding:1px 5px;border-radius:5px;font-size:12.5px}.aic-b a{color:#93c5fd}
+.aic-tag{display:inline-block;font-size:10.5px;font-weight:700;background:rgba(255,255,255,.18);border-radius:8px;padding:1px 7px;margin-bottom:5px}
+.aic-ims{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.aic-im{position:relative;cursor:zoom-in}.aic-im img{display:block;max-width:260px;max-height:260px;border-radius:10px;object-fit:cover;background:#0e131c}
+.aic-m.u .aic-im img{max-width:120px;max-height:120px}
+.aic-dl{position:absolute;right:6px;bottom:6px;width:32px;height:32px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}.aic-dl svg{width:16px;height:16px}
+.aic-dots{display:flex;align-items:center;gap:4px;color:#8d99ab;font-size:12px}.aic-dots i{width:6px;height:6px;border-radius:50%;background:#8d99ab;animation:aicdot 1.2s infinite}.aic-dots i:nth-child(2){animation-delay:.2s}.aic-dots i:nth-child(3){animation-delay:.4s}.aic-dots span{margin-left:4px}
+.aic-tx+.aic-dots{margin-top:6px}
+@keyframes aicdot{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+.aic-warn{margin:0 16px 8px;padding:9px 12px;border-radius:12px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);color:#fde68a;font-size:13px;line-height:1.45}
+.aic-btn{margin:6px 6px 0 0;padding:6px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font:700 12.5px Nunito,sans-serif;cursor:pointer}
+.aic-pend{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 8px}
+.aic-chip{position:relative;display:flex;align-items:center;gap:8px;padding:4px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
+.aic-chip img{width:52px;height:52px;border-radius:9px;object-fit:cover;display:block}
+.aic-chip.ref{padding-right:12px;border-color:rgba(47,140,255,.55);background:rgba(47,140,255,.1)}.aic-chip.ref img{border:2px solid #2f8cff}
+.aic-chip.ref span{display:flex;flex-direction:column;font-size:12px;line-height:1.3}.aic-chip.ref small{color:#93c5fd;display:flex;align-items:center;gap:5px}
+.aic-chip.ref small::before{content:"";width:7px;height:7px;border-radius:50%;background:#60a5fa;animation:aicpulse 1.4s infinite}
+.aic-chip button{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;border:2px solid #0d121b;background:#ef4444;color:#fff;font-size:14px;line-height:1;cursor:pointer;padding:0}
+.aic-comp{display:flex;align-items:flex-end;gap:8px;margin:0 14px 14px;margin-bottom:max(14px,env(safe-area-inset-bottom));padding:7px;border-radius:24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
+.aic-comp:focus-within{border-color:rgba(96,165,250,.6)}
+.aic-prov{flex:none;width:44px;height:44px;border-radius:50%;cursor:pointer;font:800 11.5px/1 Nunito,sans-serif;letter-spacing:.2px;display:flex;align-items:center;justify-content:center;transition:transform .15s,background .2s;border:2px solid transparent}
+.aic-prov:active{transform:scale(.92)}
+.aic-prov.p-gpt{background:#10a37f;color:#fff;border-color:#6ee7b7;box-shadow:0 0 12px rgba(16,163,127,.55)}
+.aic-prov.p-grok{background:#000;color:#fff;border-color:#e5e7eb;box-shadow:0 0 12px rgba(255,255,255,.25)}
+.aic-att,.aic-send{flex:none;width:40px;height:40px;margin:2px 0;border-radius:50%;border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#cbd5e1;background:transparent}
+.aic-att:hover{background:rgba(255,255,255,.08)}.aic-att svg{width:20px;height:20px}
+.aic-send{background:#2f8cff;color:#fff}.aic-send svg{width:20px;height:20px}.aic-send:hover{background:#1767e6}
+.aic-comp textarea{flex:1;min-width:0;resize:none;border:0;outline:0;background:transparent;color:#e8edf5;font:15px/1.45 Nunito,sans-serif;padding:11px 4px;max-height:180px}
+.aic-drop{position:absolute;inset:10px;border:2px dashed #60a5fa;border-radius:18px;background:rgba(47,140,255,.12);display:none;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#bfdbfe;pointer-events:none}
+.aic-ov.dragging .aic-drop{display:flex}
+.aic-lb{position:absolute;inset:0;z-index:5;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;cursor:zoom-out}
+.aic-lb img{max-width:94vw;max-height:88vh;border-radius:10px}.aic-lb .aic-x{position:absolute;top:14px;right:16px}
+.aic-toast{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);background:#1f2937;border:1px solid rgba(255,255,255,.15);padding:9px 14px;border-radius:12px;font-size:13px;z-index:6}
+@media (max-width:900px){
+ .aic-top{padding:8px 10px;gap:9px;padding-top:max(8px,env(safe-area-inset-top))}.aic-th{width:34px;height:34px}
+ .aic-st{font-size:11px;padding:4px 8px;max-width:40vw}
+ .aic-body{flex-direction:column}
+ .aic-ref{flex:0 0 auto;max-width:none;height:24vh;border-right:0;border-bottom:1px solid rgba(255,255,255,.06);padding:10px}
+ .aic-ref-l{top:6px;left:10px;font-size:10px}
+ .aic-list{padding:12px 12px 6px}.aic-m{max-width:90%}.aic-im img{max-width:200px;max-height:200px}
+ .aic-comp{margin:0 8px 8px;margin-bottom:max(8px,env(safe-area-inset-bottom))}.aic-comp textarea{font-size:16px}
+ .aic-pend{padding:0 10px 6px}.aic-warn{margin:0 10px 6px;font-size:12.5px}
+ body.kb-open .aic-ref{height:12vh}
+}
+.lowfx .aic-top{backdrop-filter:none}
