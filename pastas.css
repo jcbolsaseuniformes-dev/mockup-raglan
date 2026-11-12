@@ -555,11 +555,11 @@ body.locked .app,body.locked #pastas{visibility:hidden}
 
 /* ===== v18: botão "chat IA" ao lado do (+), os dois centralizados e afastados (evita clique errado) ===== */
 .ph .plus{left:calc(50% - 22px)}
-.ph .aic{position:absolute;top:127px;left:calc(50% + 22px);transform:translateX(-50%);width:24px;height:24px;border-radius:50%;border:2px solid #0f1520;padding:0;cursor:pointer;z-index:2;
- display:flex;align-items:center;justify-content:center;color:#fff;background:linear-gradient(180deg,#8b5cf6,#6d28d9);box-shadow:0 0 10px rgba(139,92,246,.6);transition:transform .15s,box-shadow .15s}
-.ph .aic svg{width:13px;height:13px}
-.ph .aic:hover{transform:translateX(-50%) scale(1.1);box-shadow:0 0 0 2px rgba(255,255,255,.3),0 0 14px rgba(139,92,246,.8)}
-@media (max-width:900px){.ph .plus{left:calc(50% - 26px)}.ph .aic{top:105px;left:calc(50% + 26px);width:32px;height:32px}.ph .aic svg{width:16px;height:16px}}
+.ph .aic{position:absolute;top:127px;left:calc(50% + 22px);transform:translateX(-50%);width:30px;height:30px;border:0;border-radius:0;padding:0;margin:0;background:none;cursor:pointer;z-index:2;
+ display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 0 5px rgba(34,197,94,.65));transition:transform .15s,filter .15s}
+.ph .aic svg{width:30px;height:30px;display:block;flex:none}
+.ph .aic:hover{transform:translateX(-50%) scale(1.1);filter:drop-shadow(0 0 8px rgba(34,197,94,.9))}
+@media (max-width:900px){.ph .plus{left:calc(50% - 26px)}.ph .aic{top:105px;left:calc(50% + 26px);width:38px;height:38px}.ph .aic svg{width:38px;height:38px}}
 
 /* ===== v18: janela do chat IA (tela cheia) ===== */
 body.aic-open{overflow:hidden}
@@ -580,7 +580,7 @@ body.aic-open{overflow:hidden}
 .aic-chat{flex:1;display:flex;flex-direction:column;min-width:0;max-width:980px;margin:0 auto;width:100%}
 .aic-list{flex:1;overflow-y:auto;padding:18px 18px 8px;display:flex;flex-direction:column;gap:14px;overscroll-behavior:contain}
 .aic-empty{margin:auto;text-align:center;color:#8d99ab;display:flex;flex-direction:column;align-items:center;gap:6px;max-width:340px;font-size:14px}
-.aic-empty svg{width:42px;height:42px;color:#8b5cf6;opacity:.8}.aic-empty b{color:#dfe6f1}
+.aic-empty svg{width:42px;height:42px;color:#22c55e;opacity:.8}.aic-empty b{color:#dfe6f1}
 .aic-m{display:flex;flex-direction:column;max-width:82%}
 .aic-m.u{align-self:flex-end;align-items:flex-end}.aic-m.a{align-self:flex-start}
 .aic-m small{font-size:10.5px;color:#6f7b8e;margin-top:3px;padding:0 4px}
