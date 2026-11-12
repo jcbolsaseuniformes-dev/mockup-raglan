@@ -57,6 +57,18 @@ body.pastas-on #pastas{display:flex}
 body.pastas-on #trash{display:flex}
 #trash.hot{color:#ff6b6b;border-color:rgba(255,107,107,.7);background:rgba(255,60,60,.15);box-shadow:0 0 18px rgba(255,80,80,.45);transform:scale(1.12)}
 body.dnd #trash{color:#cfd6e0;border-color:rgba(255,255,255,.25)}
+/* v18c: eye toggle — same column, directly above the trash */
+#eyeBtn{position:fixed;left:22px;bottom:76px;width:46px;height:46px;border-radius:50%;display:none;align-items:center;justify-content:center;color:#8b97a8;z-index:30;padding:0;cursor:pointer;
+ background:rgba(20,26,38,.55);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(10px);transition:.15s;-webkit-tap-highlight-color:transparent}
+body.pastas-on #eyeBtn{display:flex}
+#eyeBtn:hover{color:#dfe6f0;border-color:rgba(90,166,255,.45)}
+#eyeBtn.off{color:#9aa8b8;border-color:rgba(255,255,255,.16);background:rgba(12,16,24,.72)}
+#eyeBtn.off:hover{color:#cfd6e0;border-color:rgba(200,80,80,.45)}
+#eyeBtn .eye-off{display:none}
+#eyeBtn.off .eye-on{display:none}
+#eyeBtn.off .eye-off{display:block}
+#eyeBtn.off .eye-slash{stroke:#ef6b6b}
+#eyeBtn svg{display:block;flex:none}
 /* modal */
 .m-back{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
  background:radial-gradient(ellipse at center,rgba(0,0,0,.45) 0%,rgba(0,0,0,.78) 100%);animation:fade .15s}
@@ -104,6 +116,7 @@ body.dnd #trash{color:#cfd6e0;border-color:rgba(255,255,255,.25)}
  .modal input{font-size:16px;height:44px}
  .m-btn{height:42px}
  #trash{width:52px;height:52px;left:14px;bottom:calc(16px + env(safe-area-inset-bottom))}
+ #eyeBtn{width:52px;height:52px;left:14px;bottom:calc(78px + env(safe-area-inset-bottom))}
  .lb img{max-width:94vw;max-height:72vh}
 }
 
@@ -290,7 +303,19 @@ body.pastas-on .toast{bottom:196px}
 @media (max-width:900px){body.pastas-on .toast{bottom:calc(132px + env(safe-area-inset-bottom))}}
 /* v12: note text with per-line highlight backdrop */
 .ph .nwrap{position:relative;border-radius:10px;background:rgba(12,18,30,.85)}
-.ph .nwrap textarea{position:relative;z-index:1;background:transparent!important;display:block}
+.ph .nwrap textarea{position:relative;z-index:1;background:transparent!important;display:block;overflow:auto}
+.ph .nwrap textarea::-webkit-scrollbar{width:0;height:0}
+.ph .nwrap textarea::-webkit-scrollbar-track{background:transparent}
+.ph .nwrap textarea::-webkit-scrollbar-thumb{background:transparent;border-radius:99px}
+.ph .note:hover textarea::-webkit-scrollbar,
+.ph .note:focus-within textarea::-webkit-scrollbar{width:6px;height:6px}
+.ph .note:hover textarea::-webkit-scrollbar-thumb,
+.ph .note:focus-within textarea::-webkit-scrollbar-thumb{background:#1767e6}
+@-moz-document url-prefix(){
+ .ph .nwrap textarea{scrollbar-width:none}
+ .ph .note:hover textarea,
+ .ph .note:focus-within textarea{scrollbar-width:thin;scrollbar-color:#1767e6 transparent}
+}
 .ph .nback{position:absolute;inset:0;z-index:0;overflow:hidden;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;color:transparent;font:12px/1.4 Nunito,sans-serif;padding:7px 8px;border:1px solid transparent;border-radius:10px;pointer-events:none}
 .ph .nback mark{color:transparent;background:rgba(64,156,255,.38);border-radius:3px;box-shadow:0 0 8px rgba(64,156,255,.6);animation:umark 1.6s ease-in-out infinite}
 @keyframes umark{0%,100%{background:rgba(64,156,255,.18);box-shadow:0 0 2px rgba(64,156,255,.2)}50%{background:rgba(64,156,255,.45);box-shadow:0 0 10px rgba(64,156,255,.75)}}
@@ -448,6 +473,29 @@ body.locked .app,body.locked #pastas{visibility:hidden}
 .lowfx .ph .tech button.unseen{animation:ublink 1.4s ease-in-out infinite;box-shadow:inset 0 0 0 2px var(--tc),0 0 10px 2px var(--tc)}
 @keyframes ublink{0%,100%{opacity:1}50%{opacity:.62}}
 @media (prefers-reduced-motion:reduce){.lowfx .unseen{animation:none!important}}
+/* v18c: hide all unseen-change visuals; tracking (classes / seen map) keeps running */
+body.hide-unseen .ph .frame.unseen,
+body.hide-unseen .tile.unseen,
+body.hide-unseen .rp-it.unseen,
+body.hide-unseen .q-row.unseen,
+body.hide-unseen .ph .rel.unseen{animation:none!important;box-shadow:none}
+body.hide-unseen .ph .frame.unseen{box-shadow:0 0 12px rgba(40,130,255,.35)}
+body.hide-unseen .ph .rel.has.unseen,
+body.hide-unseen .ph .rel.open.unseen,
+body.hide-unseen .ph .rel.has.unseen-in,
+body.hide-unseen .ph .rel.open.unseen-in{box-shadow:0 0 0 2px rgba(255,255,255,.35),0 0 10px rgba(40,130,255,.6)}
+body.hide-unseen .tile.unseen{border-color:transparent}
+body.hide-unseen .tile.unseen-in,
+body.hide-unseen .ph .rel.unseen-in{box-shadow:none}
+body.hide-unseen .ph .pnm.unseen,
+body.hide-unseen .tile .nm.unseen,
+body.hide-unseen .rp-cap.unseen{animation:none!important;background:transparent;color:#cfd6e0}
+body.hide-unseen .tile .nm.unseen{color:#e2e8f0}
+body.hide-unseen .rp-cap.unseen{color:#fff;background:linear-gradient(180deg,transparent,rgba(0,0,0,.75))}
+body.hide-unseen .ph .tech button.unseen{animation:none!important;box-shadow:none}
+body.hide-unseen .ph .tech button.unseen:not(.on){color:#7c889b}
+body.hide-unseen .ph .tech button.on.unseen{box-shadow:inset 0 0 8px rgba(255,255,255,.25)}
+body.hide-unseen .ph .nback mark{animation:none!important;background:transparent;box-shadow:none}
 /* phones in landscape: queue drawer on the right, chat bar on the left — side by side, never stacked over each other */
 @media (max-width:900px) and (max-height:500px){
  .p-queue{left:auto!important;width:min(400px,46vw)!important;max-height:calc(100dvh - 70px)!important}

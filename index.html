@@ -17,7 +17,7 @@ window.PASTAS_CONFIG={
 <script>/* v13: device class for performance tweaks (Android / low-end: lower DPR, no heavy blur) */
 (()=>{const ua=navigator.userAgent,and=/Android/i.test(ua),low=(navigator.deviceMemory&&navigator.deviceMemory<=4)||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4),mob=matchMedia('(pointer:coarse)').matches;
  window.__dev={android:and,low:!!low,mobile:mob};const c=document.documentElement.classList;if(and)c.add('android');if(and||low)c.add('lowfx');if(mob)c.add('touch')})();</script>
-<link rel="stylesheet" href="pastas.css?v=18b">
+<link rel="stylesheet" href="pastas.css?v=18c">
 <style>
 *{box-sizing:border-box}html,body{height:100%}
 body{margin:0;font-family:Nunito,Inter,system-ui,sans-serif;color:#e8edf5;overflow:hidden;
@@ -124,6 +124,7 @@ background:linear-gradient(180deg,#2b8bff,#1462e0);box-shadow:0 0 26px rgba(30,1
  <button class="ttab sel" data-tab="mockup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 3 3 6l2 4 2-1v12h10V9l2 1 2-4-5-3c-.5 1.5-2 2.5-4 2.5S8.5 4.5 8 3Z"/></svg>Mockup</button>
  <button class="ttab" data-tab="pastas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>Pastas</button></div><button id="lockBtn" class="lock-btn" title="Sair (bloquear as Pastas neste aparelho)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>Sair</span></button></nav>
 <section id="pastas"></section>
+<button type="button" id="eyeBtn" title="Parar de piscar" aria-pressed="false" aria-label="Parar de piscar"><svg class="eye-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a13 13 0 0 1-1.7 2.3"/><path d="M6.1 6.1C4 7.7 2.7 10 2 12c0 0 3.5 7 10 7 1.9 0 3.6-.5 5.1-1.3"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path class="eye-slash" d="M3 3l18 18"/></svg></button>
 <div id="trash" title="Arraste aqui para excluir"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 11v6M14 11v6"/></svg></div>
 <div class="app">
  <div class="left">
@@ -405,7 +406,7 @@ const TEAM_HASH='45ca63502d8fd20eaf1e4cf0854055f2108104e992a5cc45414d7f63b421d65
 const isTeamHash=()=>location.hash.startsWith('#/pastas');
 let team=false,loaded=false;
 const sha=async t=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))].map(b=>b.toString(16).padStart(2,'0')).join('');
-async function loadPastas(){if(loaded)return;loaded=true;await import('./pastas.js?v=18b')}
+async function loadPastas(){if(loaded)return;loaded=true;await import('./pastas.js?v=18c')}
 function enterTeam(){if(team)return;team=true;document.body.classList.remove('client');document.body.classList.add('team')}
 function askPassword(){return new Promise(res=>{const m=document.createElement('div');m.className='gate';m.innerHTML=`<form class="gate-box glass" autocomplete="off"><div class="gate-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div><h3>Área da equipe</h3><p>Digite a senha para acessar as Pastas.</p><input type="password" placeholder="Senha" aria-label="Senha" autocomplete="current-password"><div class="gate-err" hidden>Senha incorreta</div><div class="gate-act"><button type="button" class="gate-c">Ver mockup</button><button type="submit" class="gate-ok">Entrar</button></div></form>`;
  document.body.append(m);const f=m.querySelector('form'),i=m.querySelector('input'),er=m.querySelector('.gate-err');setTimeout(()=>i.focus(),50);

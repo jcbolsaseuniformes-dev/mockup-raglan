@@ -605,6 +605,11 @@ document.addEventListener('pointerdown',e=>{if(!document.body.classList.contains
  if(x=t.closest('.rp-it[data-r]')){const id=x.dataset.r;if(t.closest('.rp-cap.unseen'))markSeen(id,'title');else if(x.classList.contains('unseen'))markSeen(id,'self');return}
  if(x=t.closest('.q-row[data-q]')){if(x.classList.contains('unseen'))markSeen(x.dataset.q,'self','order')}},true);
 window.__unseen={U:(id,el)=>U(objOf(id),el),clientId:CLIENT_ID};
+const HIDE_U_KEY='raglan-hide-unseen';
+const eyeBtn=document.getElementById('eyeBtn');
+function setHideUnseen(hide){document.body.classList.toggle('hide-unseen',hide);if(!eyeBtn)return;eyeBtn.classList.toggle('off',hide);eyeBtn.setAttribute('aria-pressed',String(hide));eyeBtn.title=hide?'Mostrar alterações':'Parar de piscar';eyeBtn.setAttribute('aria-label',eyeBtn.title)}
+setHideUnseen(localStorage.getItem(HIDE_U_KEY)==='1');
+eyeBtn?.addEventListener('click',()=>{const hide=!document.body.classList.contains('hide-unseen');localStorage.setItem(HIDE_U_KEY,hide?'1':'0');setHideUnseen(hide)});
 
 // ---------- v12: print techniques (DTF, Bordado, Serigrafia, Sublimação) ----------
 const TI=d=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
