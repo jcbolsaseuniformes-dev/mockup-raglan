@@ -1,4 +1,4 @@
-// v18: chat "IA" de cada cartão (aba Pastas). Separado do chat principal do site (não mexe nele).
+// v18d: chat "IA" de cada cartão (aba Pastas). Separado do chat principal do site (não mexe nele).
 // Fala com o programa "JC Chat Bridge" no PC: direto em http://127.0.0.1:47821 (mesmo PC) ou, de outro aparelho,
 // por um documento aiJobs/<id> no Firestore (listener do documento; nada de polling na nuvem).
 // O GPT/Grok rodam na conta da Eliane, num navegador escondido no PC. Nada aqui apaga arquivos ou pastas.
@@ -38,15 +38,15 @@ async function probeLocal(){try{const r=await fetchT(BR+'/status',{cache:'no-sto
 const imgSrc=u=>!u?'':/^(data:|blob:|https?:)/.test(u)?u:BR+u;
 
 let open=null;
-export async function openAIChat({store,photo,name,folderName,clientId}){
+export async function openAIChat({store,photo,name,folderName,clientId,ephemeral}={}){
  if(open)open.close();
- const card=photo.id;let prov=localStorage.getItem('jc-ai-prov')==='grok'?'grok':'gpt';
- const S={mode:'?',st:null,msgs:[],conv:{},pend:[],busy:{gpt:false,grok:false},cloudUnsub:null,closed:false};
- const ov=$(`<div class="aic-ov m-back" role="dialog" aria-label="Chat com IA">
-  <div class="aic-top"><img class="aic-th" alt=""><div class="aic-t"><b>${esc(name)}</b><span>${esc(folderName||'')}</span></div>
+ const card=(ephemeral||!photo)?('rapido-'+uid()):photo.id;let prov=localStorage.getItem('jc-ai-prov')==='grok'?'grok':'gpt';
+ const S={mode:'?',st:null,msgs:[],conv:{},pend:[],busy:{gpt:false,grok:false},cloudUnsub:null,closed:false,ephemeral:!!ephemeral};
+ const ov=$(`<div class="aic-ov m-back${ephemeral?' eph':''}" role="dialog" aria-label="${ephemeral?'Chat rápido de IA':'Chat com IA'}">
+  <div class="aic-top"><img class="aic-th" alt=""><div class="aic-t"><b>${esc(name)}</b><span>${esc(ephemeral?'Esta conversa some ao fechar':(folderName||''))}</span></div>
    <div class="aic-st" title="Conexão com o programa do PC"><i></i><span>Conectando…</span></div><button class="aic-x" title="Fechar (Esc)" aria-label="Fechar">×</button></div>
   <div class="aic-body"><div class="aic-ref" title="Imagem referente"><img alt="Imagem referente"><span class="aic-ref-l">Imagem referente</span></div>
-   <div class="aic-chat"><div class="aic-list" aria-live="polite"></div><div class="aic-warn" hidden></div>
+   <div class="aic-chat"><div class="aic-presets" role="toolbar" aria-label="Comandos prontos"></div><div class="aic-list" aria-live="polite"></div><div class="aic-warn" hidden></div>
     <div class="aic-pend"></div>
     <div class="aic-vec" hidden><div class="aic-vbar" role="toolbar" aria-label="Vectorizer">
       <button type="button" class="aic-vt" data-t="fundo" aria-pressed="false">${IC.bg}<span>Remover Fundo</span></button>
@@ -61,12 +61,12 @@ export async function openAIChat({store,photo,name,folderName,clientId}){
      <textarea rows="1" maxlength="20000" enterkeyhint="send"></textarea><button type="submit" class="aic-send" title="Enviar (Enter)" aria-label="Enviar">${IC.send}</button></form>
    </div></div><div class="aic-drop">Solte a imagem para anexar</div></div>`);
  const q=s=>ov.querySelector(s);const list=q('.aic-list'),warn=q('.aic-warn'),pendEl=q('.aic-pend'),ta=q('textarea'),pb=q('.aic-prov'),fileIn=q('input[type=file]'),stEl=q('.aic-st');
- const thumb=store.photoURL(photo);q('.aic-th').src=thumb;const refImg=q('.aic-ref img');refImg.src=thumb;
- let refFull=null;const refP=store.fullURL(photo).then(u=>{if(u){refFull=u;refImg.src=u}return u}).catch(()=>thumb);
+ const thumb=(!ephemeral&&photo)?store.photoURL(photo):'';const th=q('.aic-th');if(thumb)th.src=thumb;else th.hidden=true;const refImg=q('.aic-ref img');if(thumb)refImg.src=thumb;
+ let refFull=null;const refP=(!ephemeral&&photo)?store.fullURL(photo).then(u=>{if(u){refFull=u;refImg.src=u}return u}).catch(()=>thumb):Promise.resolve(null);
  document.body.append(ov);document.body.classList.add('aic-open');
  const close=()=>{if(S.closed)return;S.closed=true;ov.remove();document.body.classList.remove('aic-open');removeEventListener('keydown',kd,true);S.statusUnsub?.();clearInterval(S.stTimer);open=null};
  open={close};
- const kd=e=>{if(e.key==='Escape'){if(ov.querySelector('.aic-lb')){ov.querySelector('.aic-lb').remove()}else if(!ov.querySelector('.aic-pm').hidden){ov.querySelector('.aic-pm').hidden=true}else if(ov.classList.contains('vec-on')){vecClose()}else close();e.stopPropagation();e.preventDefault()}};addEventListener('keydown',kd,true);
+ const kd=e=>{if(e.key==='Escape'){if(ov.querySelector('.aic-ask'))return;if(ov.querySelector('.aic-lb')){ov.querySelector('.aic-lb').remove()}else if(!ov.querySelector('.aic-pm').hidden){ov.querySelector('.aic-pm').hidden=true}else if(ov.classList.contains('vec-on')){vecClose()}else close();e.stopPropagation();e.preventDefault()}};addEventListener('keydown',kd,true);
  q('.aic-x').onclick=close;
  q('.aic-ref').onclick=()=>viewer(refFull||thumb);
  // ---------- provedor ----------
@@ -75,7 +75,7 @@ export async function openAIChat({store,photo,name,folderName,clientId}){
  pb.onclick=e=>{e.stopPropagation();menu(pm.hidden)};ov.addEventListener('click',e=>{if(!pm.hidden&&!e.target.closest('.aic-pm'))menu(false)});
  pm.querySelectorAll('button').forEach(b=>b.onclick=()=>{menu(false);const v=b.dataset.p;if(v==='vec')return vecOpen();prov=v;localStorage.setItem('jc-ai-prov',prov);paintProv();ta.focus()});
  // ---------- anexos (a imagem referente fica em espera até o 1º comando de texto em cada IA) ----------
- const refPending=()=>!S.conv[prov];
+ const refPending=()=>!ephemeral&&!!thumb&&!S.conv[prov];
  function paintPend(){pendEl.innerHTML=(refPending()?`<div class="aic-chip ref" title="A imagem referente vai junto com o seu primeiro comando para o ${P[prov].n}"><img src="${esc(thumb)}" alt=""><span><b>Imagem referente</b><small>aguardando comando</small></span></div>`:'')
   +S.pend.map((p,i)=>`<div class="aic-chip"><img src="${esc(p.url)}" alt=""><button type="button" data-i="${i}" title="Tirar anexo" aria-label="Tirar anexo">×</button></div>`).join('');
   pendEl.hidden=!pendEl.children.length;pendEl.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>{const p=S.pend.splice(+b.dataset.i,1)[0];URL.revokeObjectURL(p.url);paintPend()})}
@@ -88,6 +88,38 @@ export async function openAIChat({store,photo,name,folderName,clientId}){
  ov.addEventListener('drop',e=>{dd=0;ov.classList.remove('dragging');const f=[...(e.dataTransfer?.files||[])].filter(x=>x.type.startsWith('image/'));e.preventDefault();e.stopPropagation();if(f.length)addFiles(f)});
  const grow=()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,180)+'px'};ta.addEventListener('input',grow);
  ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&!matchMedia('(pointer:coarse)').matches){e.preventDefault();q('form').requestSubmit()}});
+ // ---------- comandos prontos (preencham o campo; não enviam sozinhos; customizados só saem por ação explícita) ----------
+ const PRESET_DEF=['Remover fundo','Aumentar resolução','Vetorizar','Melhorar nitidez','Trocar cores'];
+ const PRESET_KEY='jc-ai-presets';
+ const customPresets=()=>{try{const v=JSON.parse(localStorage.getItem(PRESET_KEY)||'[]');return Array.isArray(v)?v.map(x=>String(x).trim()).filter(x=>x&&x.length<=80):[]}catch{return[]}};
+ const savePresets=a=>localStorage.setItem(PRESET_KEY,JSON.stringify(a));
+ const allPresetTxt=()=>[...PRESET_DEF,...customPresets()].map(x=>x.toLowerCase());
+ const fillPreset=t=>{ta.value=t;ta.focus();const n=ta.value.length;try{ta.setSelectionRange(n,n)}catch(e){}grow()};
+ function ask({title,text='',input=false,value='',ok='OK',danger=false,placeholder=''}){return new Promise(res=>{
+  const m=$(`<div class="aic-ask" role="presentation"><div class="modal glass" role="dialog"><h3>${esc(title)}</h3>${text?`<p>${esc(text)}</p>`:''}${input?`<input maxlength="80" placeholder="${esc(placeholder)}" value="${esc(value)}">`:''}<div class="m-btns"><button type="button" class="m-btn" data-a="c">Cancelar</button><button type="button" class="m-btn ${danger?'dan':'pri'}" data-a="s">${esc(ok)}</button></div></div></div>`);
+  const inp=m.querySelector('input');const done=v=>{m.remove();document.removeEventListener('keydown',key,true);res(v)};
+  const save=()=>{if(input){const v=inp.value.trim();if(!v){inp.focus();inp.style.borderColor='#ff6b6b';return}done(v)}else done(true)};
+  const key=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();done(null)}else if(e.key==='Enter'){e.preventDefault();save()}};
+  m.addEventListener('mousedown',e=>{if(e.target===m)done(null)});m.querySelector('[data-a=c]').onclick=()=>done(null);m.querySelector('[data-a=s]').onclick=save;
+  document.addEventListener('keydown',key,true);ov.append(m);(inp||m.querySelector('[data-a=s]')).focus()})}
+ async function addPreset(editI){const cur=editI!=null?customPresets()[editI]:'';
+  const v=await ask({title:editI!=null?'Editar comando':'Novo comando pronto',input:true,value:cur||'',ok:editI!=null?'Salvar':'Adicionar',placeholder:'Ex.: Deixar o fundo branco'});
+  if(!v)return;const t=v.trim().slice(0,80);if(!t)return;const arr=customPresets();
+  if(editI!=null){if(arr.map((x,i)=>[x.toLowerCase(),i]).some(([x,i])=>x===t.toLowerCase()&&i!==editI)||(PRESET_DEF.map(x=>x.toLowerCase()).includes(t.toLowerCase())&&arr[editI].toLowerCase()!==t.toLowerCase()))return toast('Esse comando já existe.');arr[editI]=t}
+  else{if(allPresetTxt().includes(t.toLowerCase()))return toast('Esse comando já existe.');arr.push(t)}
+  savePresets(arr);paintPresets()}
+ async function delPreset(i){const arr=customPresets();const t=arr[i];if(t==null)return;
+  const ok=await ask({title:'Remover comando?',text:`Tirar “${t}” dos comandos prontos?`,ok:'Remover',danger:true});
+  if(!ok)return;arr.splice(i,1);savePresets(arr);paintPresets()}
+ function paintPresets(){const bar=q('.aic-presets');if(!bar)return;const cus=customPresets();
+  bar.innerHTML=PRESET_DEF.map(t=>`<button type="button" class="aic-pb" data-t="${esc(t)}">${esc(t)}</button>`).join('')
+   +cus.map((t,i)=>`<button type="button" class="aic-pb cus" data-t="${esc(t)}" data-i="${i}">${esc(t)}<span class="aic-px" title="Remover" aria-label="Remover comando">×</span></button>`).join('')
+   +`<button type="button" class="aic-padd" title="Adicionar comando pronto" aria-label="Adicionar comando pronto">+</button>`;
+  bar.querySelectorAll('.aic-pb').forEach(b=>{b.onclick=e=>{if(e.target.closest('.aic-px'))return;fillPreset(b.dataset.t)};
+   const i=b.dataset.i;if(i!=null){b.querySelector('.aic-px').onclick=e=>{e.preventDefault();e.stopPropagation();delPreset(+i)};
+    b.oncontextmenu=e=>{e.preventDefault();delPreset(+i)};b.ondblclick=e=>{e.preventDefault();addPreset(+i)}}});
+  bar.querySelector('.aic-padd').onclick=()=>addPreset()}
+ paintPresets();
  // ---------- mensagens ----------
  function msgHTML(m){const pv=P[m.provider]?.n||'';const imgs=(m.imgs||[]).map(u=>`<div class="aic-im" data-src="${esc(imgSrc(u))}"><img src="${esc(imgSrc(u))}" alt="" loading="lazy">${m.role==='ai'?`<button class="aic-dl" title="Baixar imagem" aria-label="Baixar imagem">${IC.dl}</button>`:''}</div>`).join('');
   if(m.role==='user')return`<div class="aic-m u"><div class="aic-b">${m.ref?'<span class="aic-tag">+ imagem referente</span>':''}${imgs?`<div class="aic-ims">${imgs}</div>`:''}<div class="aic-tx">${fmtText(m.text)}</div></div><small>para ${pv}${m.at?' · '+new Date(m.at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):''}</small></div>`;
@@ -96,13 +128,13 @@ export async function openAIChat({store,photo,name,folderName,clientId}){
   const fl=(m.files||[]).map(f=>`<a class="aic-file" href="${esc(imgSrc(f.url))}" download="${esc(f.nome)}" title="Baixar ${esc(f.nome)}">${IC.dl}<span>${esc(f.nome)}</span></a>`).join('');
   return`<div class="aic-m a p-${m.provider}"><div class="aic-who">${pv}</div><div class="aic-b">${imgs?`<div class="aic-ims">${imgs}</div>`:''}${m.text?`<div class="aic-tx">${fmtText(m.text)}</div>`:''}${fl}</div></div>`}
  function paint(){const all=[...S.msgs,...Object.values(S.typing||{})];
-  list.innerHTML=all.length?all.map(msgHTML).join(''):`<div class="aic-empty">${IC.chat}<b>A imagem referente já está carregada.</b><span>Escreva o que quer fazer com ela. Ela vai junto com o seu primeiro comando.</span></div>`;
+  list.innerHTML=all.length?all.map(msgHTML).join(''):(ephemeral?`<div class="aic-empty">${IC.chat}<b>Chat rápido e descartável.</b><span>Escreva um comando ou anexe uma imagem. Ao fechar esta janela, a conversa some.</span></div>`:`<div class="aic-empty">${IC.chat}<b>A imagem referente já está carregada.</b><span>Escreva o que quer fazer com ela. Ela vai junto com o seu primeiro comando.</span></div>`);
   list.querySelectorAll('.aic-im').forEach(el=>{el.onclick=e=>{if(e.target.closest('.aic-dl'))return;viewer(el.dataset.src)};const d=el.querySelector('.aic-dl');if(d)d.onclick=()=>download(el.dataset.src)});
   list.querySelectorAll('[data-show]').forEach(b=>b.onclick=()=>janela('mostrar',b.dataset.show));
   list.scrollTop=list.scrollHeight;list.querySelectorAll('img').forEach(i=>{if(!i.complete)i.addEventListener('load',()=>{list.scrollTop=list.scrollHeight},{once:true})})}
  function viewer(src){const v=$(`<div class="aic-lb"><img src="${esc(src)}" alt=""><button class="aic-x" title="Fechar">×</button></div>`);v.onclick=()=>v.remove();ov.append(v)}
  async function download(src){try{const b=await (await fetch(src)).blob();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`${(name||'imagem').replace(/[\\/:*?"<>|]+/g,'_')} - ${P[prov].s} ${new Date().toLocaleString('pt-BR').replace(/[/:]/g,'-')}.${(b.type.split('/')[1]||'png').replace('jpeg','jpg')}`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),30000)}catch(e){window.open(src,'_blank')}}
- const saveCache=()=>idb.put(card,{msgs:S.msgs.slice(-200),conv:S.conv,at:Date.now()});
+ const saveCache=()=>{if(!ephemeral)idb.put(card,{msgs:S.msgs.slice(-200),conv:S.conv,at:Date.now()})};
  // ---------- status ----------
  function paintStatus(){const m=S.mode,st=S.st;let cls='off',txt='',w='';
   if(m==='?'){cls='wait';txt='Conectando ao PC…'}
@@ -120,12 +152,12 @@ export async function openAIChat({store,photo,name,folderName,clientId}){
   warn.querySelectorAll('[data-show]').forEach(b=>b.onclick=()=>janela('mostrar',b.dataset.show));warn.querySelectorAll('[data-hide]').forEach(b=>b.onclick=()=>janela('esconder'))}
  async function janela(acao,p){if(S.mode!=='local')return;try{await fetchT(BR+'/janela',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({acao,provider:p})},8000);S.st=await probeLocal();paintStatus()}catch(e){}}
  async function connect(){const st=await probeLocal();if(S.closed)return;
-  if(st){S.mode='local';S.st=st;await loadHistory();S.stTimer=setInterval(async()=>{if(document.hidden)return;const s=await probeLocal();if(s){S.st=s;paintStatus()}else{S.mode='off';paintStatus()}},8000)}/* localhost: não gasta cota */
-  else if(store.kind==='firebase'&&store.fs){S.mode='nuvem';const c=await idb.get(card);if(c){S.msgs=c.msgs||[];S.conv=c.conv||{}}
+  if(st){S.mode='local';S.st=st;if(!ephemeral)await loadHistory();S.stTimer=setInterval(async()=>{if(document.hidden)return;const s=await probeLocal();if(s){S.st=s;paintStatus()}else{S.mode='off';paintStatus()}},8000)}/* localhost: não gasta cota */
+  else if(store.kind==='firebase'&&store.fs){S.mode='nuvem';if(!ephemeral){const c=await idb.get(card);if(c){S.msgs=c.msgs||[];S.conv=c.conv||{}}}
    const fs=store.fs;S.statusUnsub=fs.onSnapshot(fs.doc(store.db,'machine','chat-bridge'),sn=>{S.hb=sn.exists()?sn.data():null;paintStatus()},()=>{S.hb=null;paintStatus()})}/* 1 leitura ao abrir */
-  else{S.mode='off';const c=await idb.get(card);if(c){S.msgs=c.msgs||[];S.conv=c.conv||{}}}
+  else{S.mode='off';if(!ephemeral){const c=await idb.get(card);if(c){S.msgs=c.msgs||[];S.conv=c.conv||{}}}}
   paint();paintPend();paintStatus()}
- async function loadHistory(){try{const r=await fetchT(BR+'/history?card='+encodeURIComponent(card),{cache:'no-store'},6000);const h=await r.json();S.msgs=h.msgs||[];S.conv=h.conv||{};S.vec=h.vec||null;saveCache();if(ov.classList.contains('vec-on'))vecPaint()}catch(e){const c=await idb.get(card);if(c){S.msgs=c.msgs||[];S.conv=c.conv||{}}}paint();paintPend()}
+ async function loadHistory(){try{const r=await fetchT(BR+'/history?card='+encodeURIComponent(card),{cache:'no-store'},6000);const h=await r.json();S.msgs=h.msgs||[];S.conv=h.conv||{};S.vec=h.vec||null;saveCache();if(ov.classList.contains('vec-on'))vecPaint()}catch(e){if(!ephemeral){const c=await idb.get(card);if(c){S.msgs=c.msgs||[];S.conv=c.conv||{}}}}paint();paintPend()}
  // ---------- enviar ----------
  S.typing={};
  q('form').onsubmit=async e=>{e.preventDefault();const text=ta.value.trim();const p=prov;
