@@ -66,7 +66,7 @@ export async function openAIChat({store,photo,name,folderName,clientId,ephemeral
  document.body.append(ov);document.body.classList.add('aic-open');
  const close=()=>{if(S.closed)return;S.closed=true;ov.remove();document.body.classList.remove('aic-open');removeEventListener('keydown',kd,true);S.statusUnsub?.();clearInterval(S.stTimer);open=null};
  open={close};
- const kd=e=>{if(e.key==='Escape'){if(ov.querySelector('.aic-ask'))return;if(ov.querySelector('.aic-lb')){ov.querySelector('.aic-lb').remove()}else if(!ov.querySelector('.aic-pm').hidden){ov.querySelector('.aic-pm').hidden=true}else if(ov.classList.contains('vec-on')){vecClose()}else close();e.stopPropagation();e.preventDefault()}};addEventListener('keydown',kd,true);
+ const kd=e=>{if(e.key==='Escape'){if(ov.querySelector('.aic-ask'))return;if(ov.querySelector('.aic-pcmenu')){ov.querySelector('.aic-pcmenu').remove();e.stopPropagation();e.preventDefault();return}if(ov.querySelector('.aic-lb')){ov.querySelector('.aic-lb').remove()}else if(!ov.querySelector('.aic-pm').hidden){ov.querySelector('.aic-pm').hidden=true}else if(ov.classList.contains('vec-on')){vecClose()}else close();e.stopPropagation();e.preventDefault()}};addEventListener('keydown',kd,true);
  q('.aic-x').onclick=close;
  q('.aic-ref').onclick=()=>viewer(refFull||thumb);
  // ---------- provedor ----------
@@ -88,12 +88,19 @@ export async function openAIChat({store,photo,name,folderName,clientId,ephemeral
  ov.addEventListener('drop',e=>{dd=0;ov.classList.remove('dragging');const f=[...(e.dataTransfer?.files||[])].filter(x=>x.type.startsWith('image/'));e.preventDefault();e.stopPropagation();if(f.length)addFiles(f)});
  const grow=()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,180)+'px'};ta.addEventListener('input',grow);
  ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&!matchMedia('(pointer:coarse)').matches){e.preventDefault();q('form').requestSubmit()}});
- // ---------- comandos prontos (preencham o campo; não enviam sozinhos; customizados só saem por ação explícita) ----------
+ // ---------- comandos prontos (preenchem o campo; não enviam sozinhos; saem ou mudam só por ação explícita) ----------
  const PRESET_DEF=['Remover fundo','Aumentar resolução','Vetorizar','Melhorar nitidez','Trocar cores'];
- const PRESET_KEY='jc-ai-presets';
- const customPresets=()=>{try{const v=JSON.parse(localStorage.getItem(PRESET_KEY)||'[]');return Array.isArray(v)?v.map(x=>String(x).trim()).filter(x=>x&&x.length<=80):[]}catch{return[]}};
+ const PRESET_KEY='jc-ai-presets',PRESET_GONE_KEY='jc-ai-presets-gone',PRESET_EDIT_KEY='jc-ai-presets-edit';
+ const loadList=(k,fb)=>{try{const v=JSON.parse(localStorage.getItem(k)||'');return v==null?fb():v}catch{return fb()}};
+ const customPresets=()=>{const v=loadList(PRESET_KEY,()=>[]);return Array.isArray(v)?v.map(x=>String(x).trim()).filter(x=>x&&x.length<=80):[]};
+ const hiddenDefaults=()=>{const v=loadList(PRESET_GONE_KEY,()=>[]);return Array.isArray(v)?v.map(x=>String(x).trim()).filter(Boolean):[]};
+ const defaultEdits=()=>{const v=loadList(PRESET_EDIT_KEY,()=>({}));return v&&typeof v==='object'&&!Array.isArray(v)?v:{}};
  const savePresets=a=>localStorage.setItem(PRESET_KEY,JSON.stringify(a));
- const allPresetTxt=()=>[...PRESET_DEF,...customPresets()].map(x=>x.toLowerCase());
+ const saveGone=a=>localStorage.setItem(PRESET_GONE_KEY,JSON.stringify(a));
+ const saveEdits=o=>localStorage.setItem(PRESET_EDIT_KEY,JSON.stringify(o));
+ function visiblePresets(){const gone=new Set(hiddenDefaults().map(x=>x.toLowerCase()));const edits=defaultEdits();
+  const defs=PRESET_DEF.filter(t=>!gone.has(t.toLowerCase())).map(t=>{const k=Object.keys(edits).find(x=>x.toLowerCase()===t.toLowerCase());const n=k?String(edits[k]).trim():'';return{def:true,orig:t,text:n||t}});
+  return[...defs,...customPresets().map((t,i)=>({def:false,i,text:t}))]}
  const fillPreset=t=>{ta.value=t;ta.focus();const n=ta.value.length;try{ta.setSelectionRange(n,n)}catch(e){}grow()};
  function ask({title,text='',input=false,value='',ok='OK',danger=false,placeholder=''}){return new Promise(res=>{
   const m=$(`<div class="aic-ask" role="presentation"><div class="modal glass" role="dialog"><h3>${esc(title)}</h3>${text?`<p>${esc(text)}</p>`:''}${input?`<input maxlength="80" placeholder="${esc(placeholder)}" value="${esc(value)}">`:''}<div class="m-btns"><button type="button" class="m-btn" data-a="c">Cancelar</button><button type="button" class="m-btn ${danger?'dan':'pri'}" data-a="s">${esc(ok)}</button></div></div></div>`);
@@ -102,22 +109,41 @@ export async function openAIChat({store,photo,name,folderName,clientId,ephemeral
   const key=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();done(null)}else if(e.key==='Enter'){e.preventDefault();save()}};
   m.addEventListener('mousedown',e=>{if(e.target===m)done(null)});m.querySelector('[data-a=c]').onclick=()=>done(null);m.querySelector('[data-a=s]').onclick=save;
   document.addEventListener('keydown',key,true);ov.append(m);(inp||m.querySelector('[data-a=s]')).focus()})}
- async function addPreset(editI){const cur=editI!=null?customPresets()[editI]:'';
-  const v=await ask({title:editI!=null?'Editar comando':'Novo comando pronto',input:true,value:cur||'',ok:editI!=null?'Salvar':'Adicionar',placeholder:'Ex.: Deixar o fundo branco'});
-  if(!v)return;const t=v.trim().slice(0,80);if(!t)return;const arr=customPresets();
-  if(editI!=null){if(arr.map((x,i)=>[x.toLowerCase(),i]).some(([x,i])=>x===t.toLowerCase()&&i!==editI)||(PRESET_DEF.map(x=>x.toLowerCase()).includes(t.toLowerCase())&&arr[editI].toLowerCase()!==t.toLowerCase()))return toast('Esse comando já existe.');arr[editI]=t}
-  else{if(allPresetTxt().includes(t.toLowerCase()))return toast('Esse comando já existe.');arr.push(t)}
-  savePresets(arr);paintPresets()}
- async function delPreset(i){const arr=customPresets();const t=arr[i];if(t==null)return;
-  const ok=await ask({title:'Remover comando?',text:`Tirar “${t}” dos comandos prontos?`,ok:'Remover',danger:true});
-  if(!ok)return;arr.splice(i,1);savePresets(arr);paintPresets()}
- function paintPresets(){const bar=q('.aic-presets');if(!bar)return;const cus=customPresets();
-  bar.innerHTML=PRESET_DEF.map(t=>`<button type="button" class="aic-pb" data-t="${esc(t)}">${esc(t)}</button>`).join('')
-   +cus.map((t,i)=>`<button type="button" class="aic-pb cus" data-t="${esc(t)}" data-i="${i}">${esc(t)}<span class="aic-px" title="Remover" aria-label="Remover comando">×</span></button>`).join('')
+ const closePresetMenu=()=>ov.querySelectorAll('.aic-pcmenu').forEach(m=>m.remove());
+ function openPresetMenu(e,item){e.preventDefault();e.stopPropagation();closePresetMenu();
+  const m=$(`<div class="aic-pcmenu" role="menu"><button type="button" data-a="e" role="menuitem">Editar</button><button type="button" data-a="d" class="dan" role="menuitem">Excluir</button></div>`);
+  ov.append(m);const r=ov.getBoundingClientRect(),br=e.currentTarget.getBoundingClientRect();
+  let x=br.left-r.left,y=br.bottom-r.top+4;const mw=m.offsetWidth,mh=m.offsetHeight;
+  if(x+mw>r.width-8)x=Math.max(8,r.width-mw-8);if(y+mh>r.height-8)y=Math.max(8,br.top-r.top-mh-4);if(x<8)x=8;if(y<8)y=8;
+  m.style.left=x+'px';m.style.top=y+'px';
+  m.querySelector('[data-a=e]').onclick=ev=>{ev.stopPropagation();editPreset(item)};
+  m.querySelector('[data-a=d]').onclick=ev=>{ev.stopPropagation();delPreset(item)}}
+ ov.addEventListener('pointerdown',e=>{if(!e.target.closest('.aic-pcmenu,.aic-pb'))closePresetMenu()});
+ async function addPreset(){const v=await ask({title:'Novo comando pronto',input:true,value:'',ok:'Adicionar',placeholder:'Ex.: Deixar o fundo branco'});
+  if(!v)return;const t=v.trim().slice(0,80);if(!t)return;const tl=t.toLowerCase();
+  if(visiblePresets().some(x=>x.text.toLowerCase()===tl))return toast('Esse comando já existe.');
+  const hid=hiddenDefaults();const hit=PRESET_DEF.find(d=>d.toLowerCase()===tl)||PRESET_DEF.find(d=>hid.some(h=>h.toLowerCase()===d.toLowerCase())&&d.toLowerCase()===tl);
+  if(hit&&hid.some(h=>h.toLowerCase()===hit.toLowerCase())){saveGone(hid.filter(h=>h.toLowerCase()!==hit.toLowerCase()));const ed=defaultEdits();delete ed[hit];saveEdits(ed);paintPresets();return}
+  const arr=customPresets();arr.push(t);savePresets(arr);paintPresets()}
+ async function editPreset(item){closePresetMenu();const v=await ask({title:'Editar comando',input:true,value:item.text,ok:'Salvar',placeholder:'Ex.: Deixar o fundo branco'});
+  if(!v)return;const t=v.trim().slice(0,80);if(!t)return;
+  if(visiblePresets().some(x=>x.text.toLowerCase()===t.toLowerCase()&&!(item.def?x.def&&x.orig===item.orig:!x.def&&x.i===item.i)))return toast('Esse comando já existe.');
+  if(item.def){const ed=defaultEdits();if(t===item.orig)delete ed[item.orig];else ed[item.orig]=t;saveEdits(ed)}
+  else{const arr=customPresets();arr[item.i]=t;savePresets(arr)}
+  paintPresets()}
+ async function delPreset(item){closePresetMenu();const ok=await ask({title:'Remover comando?',text:`Tirar “${item.text}” dos comandos prontos?`,ok:'Remover',danger:true});
+  if(!ok)return;
+  if(item.def){const gone=hiddenDefaults();if(!gone.some(x=>x.toLowerCase()===item.orig.toLowerCase()))gone.push(item.orig);saveGone(gone);const ed=defaultEdits();delete ed[item.orig];saveEdits(ed)}
+  else{const arr=customPresets();arr.splice(item.i,1);savePresets(arr)}
+  paintPresets()}
+ function paintPresets(){const bar=q('.aic-presets');if(!bar)return;closePresetMenu();const items=visiblePresets();
+  bar.innerHTML=items.map((it,i)=>`<button type="button" class="aic-pb${it.def?'':' cus'}" data-k="${i}" data-t="${esc(it.text)}">${esc(it.text)}${it.def?'':`<span class="aic-px" title="Remover" aria-label="Remover comando">×</span>`}</button>`).join('')
    +`<button type="button" class="aic-padd" title="Adicionar comando pronto" aria-label="Adicionar comando pronto">+</button>`;
-  bar.querySelectorAll('.aic-pb').forEach(b=>{b.onclick=e=>{if(e.target.closest('.aic-px'))return;fillPreset(b.dataset.t)};
-   const i=b.dataset.i;if(i!=null){b.querySelector('.aic-px').onclick=e=>{e.preventDefault();e.stopPropagation();delPreset(+i)};
-    b.oncontextmenu=e=>{e.preventDefault();delPreset(+i)};b.ondblclick=e=>{e.preventDefault();addPreset(+i)}}});
+  bar.querySelectorAll('.aic-pb').forEach(b=>{const item=items[+b.dataset.k];if(!item)return;
+   b.onclick=e=>{if(e.target.closest('.aic-px'))return;fillPreset(item.text)};
+   b.oncontextmenu=e=>openPresetMenu(e,item);
+   b.ondblclick=e=>{e.preventDefault();editPreset(item)};
+   b.querySelector('.aic-px')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();delPreset(item)})});
   bar.querySelector('.aic-padd').onclick=()=>addPreset()}
  paintPresets();
  // ---------- mensagens ----------

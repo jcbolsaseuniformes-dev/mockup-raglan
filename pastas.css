@@ -753,3 +753,9 @@ body.aic-open{overflow:hidden}
  .aic-pb{font-size:12px;padding:6px 10px}
  .aic-padd{width:30px;height:30px}
 }
+
+.aic-pcmenu{position:absolute;z-index:9;min-width:148px;padding:4px;border-radius:10px;background:#1b1f27;border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.aic-pcmenu button{display:block;width:100%;text-align:left;padding:8px 12px;border:0;border-radius:7px;background:transparent;color:#e8edf5;font:700 13px Nunito,sans-serif;cursor:pointer}
+.aic-pcmenu button:hover{background:rgba(255,255,255,.08)}
+.aic-pcmenu button.dan{color:#fecaca}
+.aic-pcmenu button.dan:hover{background:rgba(239,68,68,.16);color:#fff}
