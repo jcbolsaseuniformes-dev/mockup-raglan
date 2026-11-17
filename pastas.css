@@ -705,6 +705,8 @@ body.aic-open{overflow:hidden}
 .aic-vt:hover:not(:disabled){background:rgba(255,255,255,.08)}
 .aic-vt[aria-pressed=true]{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22);color:#fff}
 .aic-vt:disabled{opacity:.38;cursor:default}
+.aic-vmode{position:relative}
+@media (max-width:640px){.aic-vbar{gap:0;flex-wrap:nowrap;align-items:flex-start}.aic-vbar .aic-vt{flex:1 1 0;min-width:0;padding:6px 1px;font-size:10px;line-height:1.15;text-align:center}.aic-vbar .aic-vsp{flex:0 0 2px}}.aic-vmode.rec{color:#fcd34d}.aic-vmode.rec:hover:not(:disabled){background:rgba(252,211,77,.1)}
 .aic-vopt{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:7px 10px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e5e7eb;font:600 13px Nunito,sans-serif}
 .aic-vopt[hidden]{display:none}
 .aic-vck{display:flex;align-items:center;gap:6px;cursor:pointer}.aic-vck input{width:17px;height:17px;accent-color:#4876ff}

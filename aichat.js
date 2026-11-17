@@ -35,6 +35,11 @@ const fetchT=(u,o={},ms=2500)=>{const c=new AbortController();const t=setTimeout
 
 // ---------- conexão com o PC ----------
 async function probeLocal(){try{const r=await fetchT(BR+'/status',{cache:'no-store'},1800);const j=await r.json();return j&&j.app==='jc-chat-bridge'?j:null}catch(e){return null}}
+/* v18h: Empilhar (formas empilhadas, padrão) x Recortar (formas em recortes) no download do Vectorizer */
+IC.stack='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/><path d="M3 17.5l9 5 9-5" opacity=".55"/></svg>';
+IC.cut='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8.5 9.5h7v5h-7z" stroke-dasharray="2.2 1.8"/></svg>';
+const VEC_EMP_KEY='jc-vec-empilhamento';
+const verMin=(v,m)=>{const a=String(v||'0').split('.').map(Number),b=m.split('.').map(Number);for(let i=0;i<3;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0)}return true};
 const imgSrc=u=>!u?'':/^(data:|blob:|https?:)/.test(u)?u:BR+u;
 
 let open=null;
@@ -51,6 +56,7 @@ export async function openAIChat({store,photo,name,folderName,clientId,ephemeral
     <div class="aic-vec" hidden><div class="aic-vbar" role="toolbar" aria-label="Vectorizer">
       <button type="button" class="aic-vt" data-t="fundo" aria-pressed="false">${IC.bg}<span>Remover Fundo</span></button>
       <button type="button" class="aic-vt" data-t="paleta" aria-pressed="false">${IC.pal}<span>Paleta</span></button>
+      <button type="button" class="aic-vt aic-vmode" aria-live="polite"></button>
       <button type="button" class="aic-vt" data-t="svg">${IC.dl}<span>Baixar SVG</span></button>
       <button type="button" class="aic-vt" data-t="corel" title="Abre o SVG atual no CorelDRAW do PC">${IC.corel}<span>Abrir no Corel</span></button>
       <i class="aic-vsp"></i><button type="button" class="aic-vt" data-t="chat">${IC.back}<span>Voltar ao chat</span></button></div>
@@ -225,7 +231,17 @@ export async function openAIChat({store,photo,name,folderName,clientId,ephemeral
  function vecPaint(){const v=S.vec;const pv=v?.previa?imgSrc(v.previa)+(v.previa.includes('?')?'':'?t='+(v.at||'')):'';if(pv){vImg.src=pv;vImg.hidden=false}else vImg.hidden=true;
   vq('.aic-vfoot small').textContent=v?`Vectorizer.AI${v.cores?` · ${v.cores} cores`:''}${v.fundo?.remover?' · sem fundo':''}`:'Vectorizer.AI';
   ov.querySelectorAll('.aic-vt[data-t]').forEach(b=>{const t=b.dataset.t;b.disabled=S.vbusy||(t!=='chat'&&!v?.url);b.setAttribute('aria-pressed',vTool===t?'true':'false')});vq('.aic-vre').disabled=S.vbusy;
+  vModoBtn.disabled=S.vbusy;
   if(vTool)vecTool(vTool,true);else vOpt.hidden=true}
+ // Empilhar x Recortar: só muda como o SVG sai (Baixar SVG e Abrir no Corel). Fica salvo neste aparelho.
+ const vModoBtn=vq('.aic-vmode');let vModo=localStorage.getItem(VEC_EMP_KEY)==='cutouts'?'cutouts':'stacked';
+ function paintModo(){const r=vModo==='cutouts';vModoBtn.innerHTML=(r?IC.cut:IC.stack)+`<span>${r?'Recortar':'Empilhar'}</span>`;vModoBtn.classList.toggle('rec',r);
+  vModoBtn.title=r?'Formas RECORTADAS: o fundo fica com buracos onde estão as letras. Clique para trocar para Empilhar.':'Formas EMPILHADAS (padrão): o fundo fica inteiro e as letras por cima. Clique para trocar para Recortar.';
+  vModoBtn.setAttribute('aria-label',r?'Modo do SVG: Recortar. Trocar para Empilhar':'Modo do SVG: Empilhar. Trocar para Recortar')}
+ vModoBtn.onclick=()=>{vModo=vModo==='cutouts'?'stacked':'cutouts';localStorage.setItem(VEC_EMP_KEY,vModo);paintModo();
+  vecMsg(vModo==='cutouts'?'<b>Recortar</b>: o próximo Baixar SVG / Abrir no Corel sai com as formas recortadas (fundo com buracos).':'<b>Empilhar</b>: o próximo Baixar SVG / Abrir no Corel sai com as formas empilhadas (fundo inteiro).','')};
+ paintModo();
+ const modoAviso=()=>vModo==='cutouts'&&!verMin(S.st?.versao,'1.1.5')?` <br>O programa do PC (JC Chat Bridge ${esc(S.st?.versao||'')}) é antigo e ainda não sabe recortar: saiu empilhado. Atualize para 1.1.5.`:'';
  function vecClose(){ov.classList.remove('vec-on');vq('').hidden=true;vTool=null;setTimeout(()=>ta.focus({preventScroll:true}),30)}
  async function vecRun(body,busyTxt){if(S.vbusy)return null;
   if(S.mode!=='local'){await connect();if(S.mode!=='local'){vecMsg(S.mode==='nuvem'?'O Vectorizer funciona só no próprio PC (com o JC Chat Bridge ligado). Abra este cartão no PC.':'O programa do PC (JC Chat Bridge) não respondeu. Ligue o PC ou rode <b>C:\\jc-chat-bridge\\INSTALAR.bat</b>.','warn');return null}}
@@ -280,10 +296,10 @@ export async function openAIChat({store,photo,name,folderName,clientId,ephemeral
    S.vsel=new Set();vecRun({acao:'mesclar',de,para},`Mesclando ${de.length+1} cores…`)};
   b.addEventListener('pointerup',fim);b.addEventListener('pointercancel',fim);
   b.addEventListener('click',e=>e.preventDefault())}
-async function vecCorel(){const v=await vecRun({acao:'corel'},'Criando o arquivo do CorelDRAW…');if(v)vecMsg(`Abrindo no CorelDRAW (página 33,5 × 100 cm). Arquivo salvo em <b>Downloads\\JC Vetores</b>${v.corel?.nome?`: ${esc(v.corel.nome)}`:''}.`,'ok')}
-async function vecSVG(){const v=await vecRun({acao:'download'},'Baixando o SVG…');if(!v?.svg)return;
+async function vecCorel(){const v=await vecRun({acao:'corel',empilhamento:vModo},'Criando o arquivo do CorelDRAW…');if(v)vecMsg(`Abrindo no CorelDRAW (página 33,5 × 100 cm, formas ${vModo==='cutouts'?'recortadas':'empilhadas'}). Arquivo salvo em <b>Downloads\\JC Vetores</b>${v.corel?.nome?`: ${esc(v.corel.nome)}`:''}.`+modoAviso(),'ok')}
+async function vecSVG(){const v=await vecRun({acao:'download',empilhamento:vModo},'Baixando o SVG…');if(!v?.svg)return;
   try{const b=await (await fetchT(BR+v.svg.url,{},20000)).blob();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=v.svg.nome||((name||'vetor')+'.svg');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),30000)}catch(e){}
-  vecMsg('SVG baixado e salvo também no PC (C:\\jc-chat-bridge\\dados\\vetores). Ele aparece no chat.','ok');await loadHistory()}
+  vecMsg(`SVG baixado (formas ${vModo==='cutouts'?'recortadas':'empilhadas'}) e salvo também no PC (C:\\jc-chat-bridge\\dados\\vetores). Ele aparece no chat.`+modoAviso(),'ok');await loadHistory()}
  ov.querySelectorAll('.aic-vt[data-t]').forEach(b=>b.onclick=()=>{const t=b.dataset.t;if(t==='chat')return vecClose();if(t==='svg')return vecSVG();if(t==='corel')return vecCorel();vecTool(t)});
  vq('.aic-vre').onclick=()=>vecStart();vImg.onclick=()=>viewer(vImg.src);
  function toast(t){const e=$(`<div class="aic-toast">${esc(t)}</div>`);ov.append(e);setTimeout(()=>e.remove(),2600)}
