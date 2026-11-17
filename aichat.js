@@ -280,7 +280,7 @@ export async function openAIChat({store,photo,name,folderName,clientId,ephemeral
    S.vsel=new Set();vecRun({acao:'mesclar',de,para},`Mesclando ${de.length+1} cores…`)};
   b.addEventListener('pointerup',fim);b.addEventListener('pointercancel',fim);
   b.addEventListener('click',e=>e.preventDefault())}
-async function vecCorel(){const v=await vecRun({acao:'corel'},'Abrindo no CorelDRAW…');if(v)vecMsg('Aberto no CorelDRAW do PC (o SVG também ficou salvo em C:\\jc-chat-bridge\\dados\\vetores).','ok')}
+async function vecCorel(){const v=await vecRun({acao:'corel'},'Criando o arquivo do CorelDRAW…');if(v)vecMsg(`Abrindo no CorelDRAW (página 33,5 × 100 cm). Arquivo salvo em <b>Downloads\\JC Vetores</b>${v.corel?.nome?`: ${esc(v.corel.nome)}`:''}.`,'ok')}
 async function vecSVG(){const v=await vecRun({acao:'download'},'Baixando o SVG…');if(!v?.svg)return;
   try{const b=await (await fetchT(BR+v.svg.url,{},20000)).blob();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=v.svg.nome||((name||'vetor')+'.svg');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),30000)}catch(e){}
   vecMsg('SVG baixado e salvo também no PC (C:\\jc-chat-bridge\\dados\\vetores). Ele aparece no chat.','ok');await loadHistory()}
