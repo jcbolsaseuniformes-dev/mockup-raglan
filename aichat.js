@@ -7,7 +7,7 @@ const P={gpt:{n:'ChatGPT',s:'GPT'},grok:{n:'Grok',s:'Grok'},vec:{n:'Vectorizer.A
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const $=h=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstElementChild};
 const uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
-const IC={chat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-5l-4 3.5V17H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z"/><path d="M7.5 9h9M7.5 12.5h6"/></svg>',
+const IC={corel:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7"/><path d="M21 3l-9 9"/><path d="M19 14v4a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h4"/></svg>',chat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-5l-4 3.5V17H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z"/><path d="M7.5 9h9M7.5 12.5h6"/></svg>',
  clip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 11-8.6 8.6a5 5 0 0 1-7-7L14 4a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg>',
  send:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>',
  bg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 20 4"/><path d="M9 4H5a1 1 0 0 0-1 1v4M15 20h4a1 1 0 0 0 1-1v-4M4 14v1M10 20h1M20 9v1M14 4h1"/><circle cx="12" cy="12" r="3.2"/></svg>',
@@ -52,6 +52,7 @@ export async function openAIChat({store,photo,name,folderName,clientId,ephemeral
       <button type="button" class="aic-vt" data-t="fundo" aria-pressed="false">${IC.bg}<span>Remover Fundo</span></button>
       <button type="button" class="aic-vt" data-t="paleta" aria-pressed="false">${IC.pal}<span>Paleta</span></button>
       <button type="button" class="aic-vt" data-t="svg">${IC.dl}<span>Baixar SVG</span></button>
+      <button type="button" class="aic-vt" data-t="corel" title="Abre o SVG atual no CorelDRAW do PC">${IC.corel}<span>Abrir no Corel</span></button>
       <i class="aic-vsp"></i><button type="button" class="aic-vt" data-t="chat">${IC.back}<span>Voltar ao chat</span></button></div>
      <div class="aic-vopt" hidden></div>
      <div class="aic-vview"><img alt="Prévia do vetor" hidden><div class="aic-vbusy" hidden><i></i><span>Vetorizando…</span></div><div class="aic-vmsg" hidden></div></div>
@@ -251,15 +252,39 @@ export async function openAIChat({store,photo,name,folderName,clientId,ephemeral
     <button type="button" class="aic-vgo">Aplicar</button><button type="button" class="aic-vun" title="Desfazer a última aplicação">${IC.undo}</button>`;
    vOpt.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{vOpt.querySelectorAll('[data-m]').forEach(x=>x.classList.toggle('on',x===b))});
    vOpt.querySelector('.aic-vgo').onclick=()=>vecRun({acao:'fundo',remover:vOpt.querySelector('input').checked,modo:vOpt.querySelector('[data-m].on')?.dataset.m||'mask'},'Removendo o fundo…')}
-  else if(vTool==='paleta'){const pl=v.paleta;
+  else if(vTool==='paleta'){const pl=v.paleta,cs=v.coresSaida;
    if(!pl){vOpt.innerHTML='<span class="aic-vhint">Lendo as cores…</span>';if(!S.vbusy)vecRun({acao:'paleta'},'Lendo a paleta…');return}
-   vOpt.innerHTML=`<span class="aic-vhint">Cores</span><div class="aic-vsw">${pl.map(c=>`<button type="button" data-n="${c.n}" class="${(v.cores?c.n===v.cores:c.escolhido)?'on':''}" title="Usar ${c.n} ${c.n>1?'cores':'cor'}${c.recomendado?' (recomendado)':''}" style="--c:${esc(c.cor||'#ccc')}"><span>${c.n}</span></button>`).join('')}</div><button type="button" class="aic-vun" title="Desfazer a última aplicação">${IC.undo}</button>`;
-   vOpt.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>vecRun({acao:'paleta',n:+b.dataset.n},'Aplicando a paleta…'))}
+   if(!cs&&!S.vbusy&&!S.vcoresPedido){S.vcoresPedido=1;vecRun({acao:'cores'},'Lendo as cores…').then(r=>{if(!r){S.vcoresFalhou=1;vecMsg('');if(vTool==='paleta')vecTool('paleta',true)}});}
+   const sel=S.vsel=(S.vsel||new Set());if(cs)[...sel].forEach(c=>{if(!cs.some(x=>x.cor===c))sel.delete(c)});
+   vOpt.innerHTML=`<div class="aic-vpal"><div class="aic-vrow"><span class="aic-vhint">Cores</span>${cs?`<div class="aic-vsw aic-vmx">${cs.map(c=>`<button type="button" data-c="${esc(c.cor)}" class="${sel.has(c.cor)?'sel':''}" title="${esc(c.cor)}${c.entradas?.length>1?` · ${c.entradas.length} cores mescladas`:''}" style="--c:${esc(c.cor)}">${c.entradas?.length>1?`<span>${c.entradas.length}</span>`:''}</button>`).join('')}</div>`:`<span class="aic-vhint">${S.vcoresFalhou?'Para mesclar cores, atualize o JC Chat Bridge no PC (1.1.3).':'Lendo…'}</span>`}<button type="button" class="aic-vun" title="Desfazer a última aplicação">${IC.undo}</button></div>
+    <div class="aic-vtip">${sel.size?`<b>${sel.size} selecionada${sel.size>1?'s':''}</b> · arraste para dentro de outra cor para mesclar · <button type="button" class="aic-vclr">limpar</button>`:'Arraste uma cor para dentro de outra para mesclar · clique/toque para selecionar várias'}</div>
+    <div class="aic-vrow aic-vqt"><span class="aic-vhint">Quantidade</span><div class="aic-vsw">${pl.map(c=>`<button type="button" data-n="${c.n}" class="${(v.paleta&&!cs?(v.cores?c.n===v.cores:c.escolhido):c.escolhido)?'on':''}" title="Recalcular com ${c.n} ${c.n>1?'cores':'cor'}${c.recomendado?' (recomendado)':''}" style="--c:${esc(c.cor||'#ccc')}"><span>${c.n}</span></button>`).join('')}</div></div></div>`;
+   vOpt.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>{S.vsel=new Set();vecRun({acao:'paleta',n:+b.dataset.n},'Aplicando a paleta…')});
+   vOpt.querySelector('.aic-vclr')?.addEventListener('click',()=>{sel.clear();vecTool('paleta',true)});
+   vOpt.querySelectorAll('.aic-vmx [data-c]').forEach(mixDrag)}
   vOpt.querySelector('.aic-vun')?.addEventListener('click',()=>vecRun({acao:'desfazer'},'Desfazendo…'))}
- async function vecSVG(){const v=await vecRun({acao:'download'},'Baixando o SVG…');if(!v?.svg)return;
+ // Mesclar cores (igual no Vectorizer.AI): arrastar uma cor (ou as selecionadas) para dentro de outra. Mouse e toque (pointer events).
+ function mixDrag(b){let st=null;
+  b.addEventListener('pointerdown',e=>{if(S.vbusy||e.button>0)return;st={x:e.clientX,y:e.clientY,id:e.pointerId,on:false,ghost:null,alvo:null};try{b.setPointerCapture(e.pointerId)}catch(_){}});
+  b.addEventListener('pointermove',e=>{if(!st||e.pointerId!==st.id)return;
+   if(!st.on){if(Math.hypot(e.clientX-st.x,e.clientY-st.y)<7)return;st.on=true;const sel=S.vsel;const c=b.dataset.c;st.de=sel.has(c)?[...sel]:[c];
+    st.ghost=$(`<div class="aic-vghost">${st.de.slice(0,5).map(x=>`<i style="--c:${esc(x)}"></i>`).join('')}${st.de.length>1?`<b>${st.de.length}</b>`:''}</div>`);document.body.append(st.ghost);
+    vOpt.querySelectorAll('.aic-vmx [data-c]').forEach(x=>x.classList.toggle('drag',st.de.includes(x.dataset.c)));vOpt.classList.add('dragging')}
+   e.preventDefault();st.ghost.style.transform=`translate(${e.clientX+14}px,${e.clientY+12}px)`;
+   const el=document.elementFromPoint(e.clientX,e.clientY)?.closest?.('.aic-vmx [data-c]');const alvo=el&&!st.de.includes(el.dataset.c)?el:null;
+   if(alvo!==st.alvo){st.alvo?.classList.remove('drop');alvo?.classList.add('drop');st.alvo=alvo}});
+  const fim=e=>{if(!st||e.pointerId!==st.id)return;const s=st;st=null;try{b.releasePointerCapture(e.pointerId)}catch(_){}
+   s.ghost?.remove();vOpt.classList.remove('dragging');vOpt.querySelectorAll('.drag,.drop').forEach(x=>x.classList.remove('drag','drop'));
+   if(!s.on){if(e.type==='pointerup'){const c=b.dataset.c;S.vsel.has(c)?S.vsel.delete(c):S.vsel.add(c);vecTool('paleta',true)}return}
+   if(e.type!=='pointerup'||!s.alvo)return;const para=s.alvo.dataset.c;const de=s.de.filter(x=>x!==para);if(!de.length)return;
+   S.vsel=new Set();vecRun({acao:'mesclar',de,para},`Mesclando ${de.length+1} cores…`)};
+  b.addEventListener('pointerup',fim);b.addEventListener('pointercancel',fim);
+  b.addEventListener('click',e=>e.preventDefault())}
+async function vecCorel(){const v=await vecRun({acao:'corel'},'Abrindo no CorelDRAW…');if(v)vecMsg('Aberto no CorelDRAW do PC (o SVG também ficou salvo em C:\\jc-chat-bridge\\dados\\vetores).','ok')}
+async function vecSVG(){const v=await vecRun({acao:'download'},'Baixando o SVG…');if(!v?.svg)return;
   try{const b=await (await fetchT(BR+v.svg.url,{},20000)).blob();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=v.svg.nome||((name||'vetor')+'.svg');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),30000)}catch(e){}
   vecMsg('SVG baixado e salvo também no PC (C:\\jc-chat-bridge\\dados\\vetores). Ele aparece no chat.','ok');await loadHistory()}
- ov.querySelectorAll('.aic-vt[data-t]').forEach(b=>b.onclick=()=>{const t=b.dataset.t;if(t==='chat')return vecClose();if(t==='svg')return vecSVG();vecTool(t)});
+ ov.querySelectorAll('.aic-vt[data-t]').forEach(b=>b.onclick=()=>{const t=b.dataset.t;if(t==='chat')return vecClose();if(t==='svg')return vecSVG();if(t==='corel')return vecCorel();vecTool(t)});
  vq('.aic-vre').onclick=()=>vecStart();vImg.onclick=()=>viewer(vImg.src);
  function toast(t){const e=$(`<div class="aic-toast">${esc(t)}</div>`);ov.append(e);setTimeout(()=>e.remove(),2600)}
  paintProv();paint();paintPend();connect();setTimeout(()=>ta.focus({preventScroll:true}),60);

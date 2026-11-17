@@ -717,6 +717,19 @@ body.aic-open{overflow:hidden}
 .aic-vsw button{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:var(--c);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
 .aic-vsw button span{font:800 11px Nunito,sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 2px #000}
 .aic-vsw button.on{border-color:#fff;box-shadow:0 0 0 2px #4876ff}
+.aic-vpal{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0}
+.aic-vrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.aic-vmx button{touch-action:none;position:relative;transition:transform .15s,box-shadow .15s,opacity .15s;user-select:none;-webkit-user-select:none}
+.aic-vmx button.sel{border-color:#fff;box-shadow:0 0 0 2px #1e3a8a,0 0 0 4px #93b0ff}
+.aic-vmx button.drag{opacity:.35}
+.aic-vmx button.drop{transform:scale(1.28);border-color:#fff;box-shadow:0 0 0 3px #4876ff,0 0 14px 4px rgba(72,118,255,.85)}
+.aic-vopt.dragging{cursor:grabbing}
+.aic-vghost{position:fixed;left:0;top:0;z-index:100000;pointer-events:none;display:flex;align-items:center}
+.aic-vghost i{width:30px;height:30px;border-radius:50%;background:var(--c);border:2px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.45);margin-left:-14px}.aic-vghost i:first-child{margin-left:0}
+.aic-vghost b{margin-left:4px;padding:1px 7px;border-radius:9px;background:#1e3a8a;color:#fff;font:800 11px Nunito,sans-serif}
+.aic-vtip{font:600 11.5px Nunito,sans-serif;color:#9ca3af}.aic-vtip b{color:#dbe4ff}
+.aic-vclr{background:none;border:0;padding:0;color:#93b0ff;font:inherit;text-decoration:underline;cursor:pointer}
+.aic-vqt .aic-vsw button{width:24px;height:24px}.aic-vqt .aic-vsw button span{font-size:9.5px}.aic-vqt{opacity:.9}
 .aic-vview{position:relative;flex:1;min-height:0;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.12);
  background:#fff repeating-conic-gradient(#e5e7eb 0 25%,#fff 0 50%) 0 0/22px 22px;display:flex;align-items:center;justify-content:center}
 .aic-vview img{max-width:100%;max-height:100%;object-fit:contain;cursor:zoom-in}
