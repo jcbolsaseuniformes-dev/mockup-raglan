@@ -1,0 +1,336 @@
+/* Aba Estoque (porte do Estoque JC, com o visual do site). Gerado por build.py */
+#estoque{--bg:transparent;--panel:#141c2b;--line:#9fb4d0;--gold:#2f8cff;--gold2:#5aa8ff;--muted:#8b97a8;--btn:#d6d6d6;--txt:#ececec;--header:64px;--tabs:48px;--chrome:112px}
+#estoque *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+#estoque,#estoque{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:Nunito,Inter,system-ui,sans-serif;overflow:hidden}
+#estoque button{font:inherit;color:inherit;cursor:pointer}
+#estoque svg{display:block}
+#estoque .top{position:fixed;inset:0 0 auto 0;height:var(--header);padding:env(safe-area-inset-top) 14px 0;display:flex;align-items:center;gap:12px;z-index:6;background:transparent}
+#estoque .brand{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+#estoque .logo img{width:38px;height:38px;border-radius:10px;box-shadow:0 0 0 1px #223150}
+#estoque .t1{font-weight:700;letter-spacing:.3px;white-space:nowrap}
+#estoque .t2{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#estoque .stats{display:flex;align-items:center;gap:14px}
+#estoque .stat{display:flex;flex-direction:column;align-items:flex-end;line-height:1}
+#estoque .stat span{font-weight:700;font-size:18px;color:var(--gold2)}
+#estoque .stat small{font-size:11px;color:var(--muted)}
+#estoque .conn{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+#estoque .conn i{width:9px;height:9px;border-radius:50%;background:#2f8cff;box-shadow:0 0 8px #2f8cff}
+#estoque .conn.on i{background:#3ddc84;box-shadow:0 0 8px #3ddc84}
+#estoque .conn.off i{background:#ff5a5a;box-shadow:0 0 8px #ff5a5a}
+#estoque .btn-search{display:flex;align-items:center;gap:8px;background:linear-gradient(#5aa8ff,#1767e6);color:#ffffff;border:0;border-radius:999px;padding:9px 16px;font-weight:700;box-shadow:0 4px 18px #2f8cff44}
+#estoque .btn-search svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+#estoque #es-planWrap{position:fixed;inset:var(--chrome) 0 0 0;display:flex;align-items:center;justify-content:center;padding:8px 8px 28px;min-height:0}
+#estoque #es-plan{width:100%;height:100%;max-width:1100px;min-width:0;min-height:0;flex:1 1 auto;overflow:visible}
+#estoque .hint{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-size:12px;color:#6d7a8e;pointer-events:none;white-space:nowrap}
+#estoque .wall{fill:none;stroke:var(--line);stroke-width:5;stroke-linejoin:round;stroke-linecap:round;filter:drop-shadow(0 0 6px #ffffff18)}
+#estoque .floor{fill:#0f1622}
+#estoque .door{fill:var(--gold);filter:drop-shadow(0 0 6px #2f8cff88)}
+#estoque .door-gap{stroke:#0f1622;stroke-width:9}
+#estoque .swing{fill:none;stroke:var(--gold);stroke-width:1.4;stroke-dasharray:5 5;opacity:.6}
+#estoque .shelf{cursor:pointer;transition:filter .25s}
+#estoque .shelf rect.body{stroke:#2a1a0c;stroke-width:1.5;transition:all .25s}
+#estoque .shelf .lbl{font-size:15px;font-weight:700;fill:#fff;paint-order:stroke;stroke:#000a;stroke-width:3px;pointer-events:none}
+#estoque .shelf .sub{font-size:12px;fill:#bbb;pointer-events:none}
+#estoque .shelf:hover,#estoque .shelf:focus{filter:drop-shadow(0 0 10px #5aa8ffaa)}
+#estoque .shelf:hover rect.body{stroke:var(--gold2);stroke-width:3}
+#estoque .shelf.hit rect.body{stroke:var(--gold2);stroke-width:4}
+#estoque .shelf.hit{animation:es-glow 1.3s ease-in-out infinite}
+@keyframes es-glow{50%{filter:drop-shadow(0 0 18px #5aa8ff)}}
+#estoque .badge{fill:var(--gold2)}
+#estoque .badge-t{font-size:12px;font-weight:800;fill:#ffffff;pointer-events:none}
+#estoque .room-lbl{fill:#2a3b5e;font-size:22px;font-weight:700;letter-spacing:4px}
+#estoque .panel-back,#estoque .sheet-back{position:fixed;inset:0;background:#000b;opacity:0;pointer-events:none;transition:opacity .3s;z-index:10;backdrop-filter:blur(2px)}
+#estoque .panel-back.show,#estoque .sheet-back.show{opacity:1;pointer-events:auto}
+#estoque .panel{position:fixed;z-index:11;left:0;top:0;width:600px;height:600px;background:radial-gradient(120% 90% at 50% 0%,#1a2640,#0e1420);border:1px solid #22314f;border-radius:22px;box-shadow:0 30px 80px #000;display:flex;flex-direction:column;opacity:0;pointer-events:none;overflow:hidden}
+#estoque .panel.show{opacity:1;pointer-events:auto}
+#estoque .panel-head{display:flex;align-items:center;gap:10px;padding:12px 14px}
+#estoque .ph-title{flex:1;text-align:center}
+#estoque .ph-title div{font-weight:700;font-size:18px}
+#estoque .ph-title small{color:var(--muted);font-size:12px}
+#estoque .icon-btn{width:44px;height:44px;border-radius:12px;border:1px solid #2a3b5e;background:#18233a;display:grid;place-items:center}
+#estoque .icon-btn svg{width:22px;height:22px;fill:none;stroke:#ddd;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#estoque .icon-btn.trash:not(:disabled){background:#3a1717;border-color:#ff5a5a;animation:es-pulseR 1.4s infinite}
+#estoque .icon-btn.trash:not(:disabled) svg{stroke:#ff8080}
+#estoque .icon-btn:disabled{opacity:.35}
+@keyframes es-pulseR{50%{box-shadow:0 0 0 6px #ff5a5a22}}
+#estoque .stage{flex:1;position:relative;overflow:hidden}
+#estoque .scene{position:absolute;inset:0;perspective:1400px;perspective-origin:50% 40%}
+#estoque .panel-foot{font-size:12px;color:var(--muted);text-align:center;padding:8px 12px 14px}
+#estoque .unit{position:absolute;transform-style:preserve-3d;transform:rotateX(9deg) rotateY(-20deg)}
+#estoque .unit *{transform-style:preserve-3d}
+#estoque .face{position:absolute;backface-visibility:visible}
+#estoque .wood{background:linear-gradient(160deg,#2b466f,#15263f)}
+#estoque .wood-v{background:linear-gradient(160deg,#2b466f,#15263f)}
+#estoque .back{background:linear-gradient(160deg,#2b466f,#15263f);filter:brightness(.45) saturate(.9)}
+#estoque .side{background:linear-gradient(160deg,#2b466f,#15263f);filter:brightness(.8)}
+#estoque .side.inner{filter:brightness(.6)}
+#estoque .board-top{background:linear-gradient(160deg,#2b466f,#15263f);filter:brightness(.95)}
+#estoque .board-front{background:linear-gradient(160deg,#2b466f,#15263f);filter:brightness(1.12) contrast(1.05);box-shadow:inset 0 1px 0 #ffffff40,inset 0 -2px 0 #0004}
+#estoque .post-front{background:linear-gradient(160deg,#2b466f,#15263f);filter:brightness(1.05);box-shadow:inset 1px 0 0 #ffffff30,inset -2px 0 0 #0005}
+#estoque .shadow-floor{position:absolute;background:radial-gradient(closest-side,#000c,#0000);transform:rotateX(90deg)}
+#estoque .lvl-row{position:absolute;display:block}
+#estoque .slot-ghost{position:absolute;bottom:0;border:2px dashed var(--gold2);border-radius:4px;background:#5aa8ff14;opacity:0;transition:left .12s ease,opacity .15s;pointer-events:none}
+#estoque .slot-ghost.on{opacity:1}
+#estoque .lvl-tag{position:absolute;font-size:11px;color:#aaa;white-space:nowrap;text-align:right;transform:translateZ(1px)}
+#estoque .lvl-tag.topo{color:var(--gold2);font-weight:700}
+#estoque .ctrl{position:absolute;display:flex;gap:6px;align-items:center;transform:translateZ(2px)}
+#estoque .ctrl button{width:34px;height:34px;border-radius:9px;border:0;background:linear-gradient(#ececec,#c9c9c9);color:#222;font-size:22px;font-weight:700;line-height:1;box-shadow:0 2px 0 #8a8a8a,0 4px 10px #0007}
+#estoque .ctrl button:active{transform:translateY(2px);box-shadow:0 0 0 #8a8a8a}
+#estoque .ctrl .n{font-size:11px;color:#999;min-width:14px;text-align:center}
+#estoque .marker{position:absolute;border-left:2px solid var(--gold);transform:translateZ(2px)}
+#estoque .marker:before,#estoque .marker:after{content:"";position:absolute;left:-7px;width:12px;border-top:2px solid var(--gold)}
+#estoque .marker:before{top:0}
+#estoque .marker:after{bottom:0}
+#estoque .marker span{position:absolute;top:50%;left:-10px;transform:translate(-100%,-50%);color:var(--gold2);font-weight:700;font-size:13px;white-space:nowrap}
+#estoque .block{position:absolute;bottom:0;cursor:grab;touch-action:none;transition:left .24s cubic-bezier(.25,1.35,.5,1)}
+#estoque .block.dragging{transition:none;cursor:grabbing;z-index:8;filter:brightness(1.08) drop-shadow(0 6px 14px #000a)}
+#estoque .block .bf{position:absolute;inset:0;display:flex;flex-direction:column-reverse;gap:1px;padding:0;border-radius:4px;overflow:hidden;min-height:0}
+#estoque .block.empty .bf{border:2px dashed #ffffff40;background:#ffffff08;justify-content:center;align-items:center}
+#estoque .block.empty .bf:after{content:"vazio";font-size:10px;color:#ffffff60}
+#estoque .block .btop{position:absolute;left:0;right:0;top:0;transform-origin:top;transform:rotateX(-90deg);border-radius:4px}
+#estoque .block .bside{position:absolute;top:0;bottom:0;right:0;transform-origin:right;transform:rotateY(-90deg);filter:brightness(.6);display:flex;flex-direction:column-reverse;gap:1px;overflow:hidden;min-height:0}
+#estoque .layer{position:relative;flex:var(--q) 1 0%;min-height:var(--minh,7px);border-radius:3px 3px 2px 2px;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 75%,#fff) 0%,var(--c) 22%,var(--c) 70%,color-mix(in srgb,var(--c) 65%,#000) 100%);box-shadow:inset 0 1px 0 #fff4,inset 0 -1px 0 #0003,0 1px 1px #0005}
+#estoque .layer:before{content:"";position:absolute;left:12%;right:12%;top:20%;border-top:1px solid #0000002e;pointer-events:none}
+#estoque .layer:after{content:"";position:absolute;left:0;right:0;bottom:0;height:min(2px,25%);background:repeating-linear-gradient(90deg,#0002 0 3px,#0000 3px 7px);pointer-events:none}
+#estoque .layer.new{animation:drop .6s cubic-bezier(.3,1.5,.5,1) both}
+@keyframes es-drop{from{transform:translateY(-60px) scale(1.05);opacity:0}to{transform:none;opacity:1}}
+#estoque .block.born{animation:born .45s cubic-bezier(.3,1.5,.5,1)}
+@keyframes es-born{from{transform:scale(.3);opacity:0}}
+#estoque .block .qlbl{position:absolute;left:50%;top:-4px;transform:translate(-50%,-100%) translateZ(4px);font-size:10px;font-weight:700;color:#fff;background:#000a;padding:1px 5px;border-radius:6px;white-space:nowrap;pointer-events:none;max-width:120%;overflow:hidden;text-overflow:ellipsis}
+#estoque .block.sel .bf{outline:3px solid var(--gold2);outline-offset:2px;box-shadow:0 0 22px 6px #5aa8ffaa}
+#estoque .block.flash .bf{animation:es-flash 1s ease-in-out 3}
+@keyframes es-flash{50%{box-shadow:0 0 30px 12px #5aa8ff;outline:3px solid #fff}}
+#estoque .list-btn{position:absolute;left:50%;top:calc(100% + 8px);transform:translateX(-50%) translateZ(30px);width:38px;height:38px;border-radius:50%;border:2px solid var(--gold2);background:#161f30;display:grid;place-items:center;box-shadow:0 4px 14px #000a,0 0 12px #5aa8ff66;z-index:3;animation:es-pop .3s cubic-bezier(.3,1.6,.5,1)}
+#estoque .list-btn svg{width:20px;height:20px;fill:none;stroke:var(--gold2);stroke-width:2.2;stroke-linecap:round}
+@keyframes es-pop{from{transform:translateX(-50%) translateZ(30px) scale(0)}}
+#estoque .sheet{position:fixed;z-index:20;left:50%;top:50%;width:min(560px,96vw);max-height:90vh;transform:translate(-50%,-46%) scale(.97);opacity:0;pointer-events:none;transition:all .28s cubic-bezier(.3,1.2,.5,1);background:#141c2b;border:1px solid #25355a;border-radius:20px;box-shadow:0 30px 80px #000;display:flex;flex-direction:column}
+#estoque .sheet.show{transform:translate(-50%,-50%);opacity:1;pointer-events:auto}
+#estoque .sheet-head{display:flex;align-items:center;gap:10px;padding:14px 14px 8px}
+#estoque .sheet-head>div:first-child{flex:1}
+#estoque .sh-t{font-weight:700;font-size:17px}
+#estoque .sheet-head small{color:var(--muted)}
+#estoque .sheet-scroll-wrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+#estoque .sheet-body{overflow-y:auto;overflow-x:hidden;padding:6px 14px 10px;flex:1;scrollbar-width:none;-ms-overflow-style:none}
+#estoque .sheet-body::-webkit-scrollbar{display:none;width:0;height:0}
+#estoque .sb-track{position:absolute;top:6px;bottom:6px;right:4px;width:8px;background:transparent;pointer-events:none;z-index:5}
+#estoque .sb-thumb{position:absolute;right:0;top:0;width:5px;min-height:28px;border-radius:999px;background:linear-gradient(180deg,#2f8cff88,#1767e688);border:1px solid #5aa8ff44;opacity:0;transform:scaleX(.25);transform-origin:right center;transition:opacity .25s ease,transform .25s cubic-bezier(.3,1.4,.5,1),background .2s;pointer-events:auto;cursor:pointer}
+#estoque .sb-track.vis .sb-thumb{opacity:1;transform:scaleX(1)}
+#estoque .sb-thumb:hover,#estoque .sb-track.drag .sb-thumb{width:7px;background:linear-gradient(180deg,#5aa8ff,#1767e6);box-shadow:0 0 8px #5aa8ff55;opacity:1;transform:scaleX(1)}
+@media (hover:none),(pointer:coarse),(max-width:700px){#estoque .sb-track{display:none!important}}
+#estoque .sheet-foot{display:flex;gap:10px;padding:10px 14px 14px;justify-content:flex-end}
+#estoque .btn{border:0;border-radius:12px;padding:12px 20px;font-weight:700}
+#estoque .btn.gold{background:linear-gradient(#5aa8ff,#1767e6);color:#ffffff}
+#estoque .btn.ghost{background:#1c2842;border:1px solid #2a3b5e}
+#estoque .stack-preview{height:70px;display:flex;flex-direction:column-reverse;gap:1px;width:120px;margin:4px auto 12px;overflow:hidden;border-radius:4px}
+#estoque .items{display:flex;flex-direction:column;gap:8px}
+#estoque .irow{display:flex;align-items:center;gap:8px}
+#estoque .item{flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:#222;border:1px solid #25355a;cursor:pointer}
+#estoque .item.on{border-color:var(--gold);background:#16233a}
+#estoque .item .dot{width:24px;height:24px;border-radius:7px;flex:none;box-shadow:inset 0 -3px 0 #0004,0 0 0 1px #0006}
+#estoque .item .txt{flex:1;min-width:0}
+#estoque .item .txt b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#estoque .item .txt small{display:block;color:#aaa;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#estoque .qty-in{display:flex;align-items:center;gap:4px;flex:none}
+#estoque .qty-in button{width:30px;height:32px;border-radius:8px;border:0;background:linear-gradient(#ececec,#c9c9c9);color:#222;font-size:17px;font-weight:800;line-height:1;padding:0}
+#estoque .qty-in input{width:44px;height:32px;text-align:center;font-size:14px;font-weight:700;border-radius:8px;border:1px solid #2d4064;background:#0c1220;color:#fff;padding:0;-moz-appearance:textfield}
+#estoque .qty-in input::-webkit-outer-spin-button,#estoque .qty-in input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+#estoque .qty-in .fast{width:auto;padding:0 7px;font-size:11.5px;background:#223150;color:#ddd;border:1px solid #2a3b5e}
+#estoque .irow .del{flex:none;width:32px;height:32px;border-radius:50%;border:1px solid #5a2a2a;background:#2a1c1c;color:#e88;font-size:13px;cursor:pointer}
+#estoque .irow .del:hover{background:#4a2020;color:#fff}
+#estoque .add-item{width:100%;margin:10px 0;padding:11px;border-radius:12px;border:1.5px dashed #2c4a78;background:#111a2a;color:var(--gold2);font-weight:700}
+#estoque .editor{border-top:1px solid #22314f;padding-top:8px}
+#estoque .field{margin:12px 0}
+#estoque .field>label{display:block;font-size:12px;color:#aaa;margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px}
+#estoque .chips{display:flex;flex-wrap:wrap;gap:6px}
+#estoque .chip{border:1px solid #2a3b5e;background:#1a2640;border-radius:999px;padding:8px 12px;font-size:13px}
+#estoque .chip.on{background:var(--gold);color:#ffffff;border-color:var(--gold);font-weight:700}
+#estoque .chip.plus{background:#111a2a;border:1.5px dashed var(--gold);color:var(--gold2);font-weight:800;min-width:40px}
+#estoque .es-sw{width:34px;height:34px;border-radius:9px;border:2px solid #0000;box-shadow:inset 0 -3px 0 #0003,0 0 0 1px #000}
+#estoque .es-sw.on{border-color:#fff;box-shadow:0 0 0 2px var(--gold2)}
+#estoque .es-sw.custom{background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);position:relative;overflow:hidden}
+#estoque .es-sw.custom input{position:absolute;inset:0;opacity:0;cursor:pointer}
+#estoque .search-box{display:flex;align-items:center;gap:8px;background:transparent;border:1px solid #2a3b5e;border-radius:14px;padding:0 12px}
+#estoque .search-box svg{width:20px;height:20px;fill:none;stroke:var(--gold2);stroke-width:2.4;stroke-linecap:round;flex:none}
+#estoque .search-box input{flex:1;height:46px;border:0;background:transparent;color:#fff;font-size:16px;outline:none;min-width:0}
+#estoque .quick{padding:0 14px}
+#estoque .s-total{padding:10px 14px 2px;color:#bbb;font-size:13px}
+#estoque .s-total b{color:var(--gold2);font-size:18px}
+#estoque .res{display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;background:#222;border:1px solid #25355a;margin-bottom:8px;cursor:pointer}
+#estoque .res:hover{border-color:var(--gold)}
+#estoque .res .where{font-size:12px;color:var(--gold2);font-weight:700}
+#estoque .res .q{margin-left:auto;font-weight:800;font-size:18px;color:#fff;text-align:right}
+#estoque .res .q small{display:block;font-size:10px;color:#888;font-weight:400}
+#estoque .empty-s{color:#777;text-align:center;padding:30px 0}
+#estoque .es-toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,40px);opacity:0;background:#1c2842;border:1px solid #2a3b5e;padding:10px 16px;border-radius:12px;z-index:50;transition:all .3s;font-size:14px}
+#estoque .es-toast.show{opacity:1;transform:translate(-50%,0)}
+#estoque .tabs{position:fixed;top:var(--header);left:0;right:0;height:var(--tabs);z-index:6;display:flex;gap:6px;padding:6px 10px;background:transparent;border-bottom:1px solid #223150}
+#estoque .tabs button{flex:1;min-height:36px;border:0;border-radius:11px;background:#151e2e;color:#b8b8b8;font-weight:700;font-size:13.5px;letter-spacing:.2px}
+#estoque .tabs button.on{background:linear-gradient(#5aa8ff,#1767e6);color:#ffffff;box-shadow:0 4px 14px #2f8cff33}
+#estoque[data-tab="dtf"] #es-planWrap,#estoque[data-tab="subl"] #es-planWrap{display:none}
+#estoque[data-tab="uni"] #es-stockWrap{display:none}
+#estoque:not([data-tab="uni"]) #es-btnSearch{display:none}
+#estoque #es-stockWrap{position:fixed;inset:var(--chrome) 0 0 0;overflow:auto;overflow-x:hidden;padding:14px 16px 28px;background:var(--bg);-webkit-overflow-scrolling:touch}
+#estoque #es-stockWrap[hidden]{display:none!important}
+#estoque #es-stockAdd,#estoque .stk-add,#estoque .stk-acts{display:none!important}
+#estoque .stock-head{margin:0 0 14px}
+#estoque .stock-title{font-weight:800;font-size:22px;letter-spacing:.3px}
+#estoque .stock-sub{margin:4px 0 0;color:var(--muted);font-size:13px;line-height:1.4;max-width:62ch}
+#estoque .stock-list{display:flex;flex-wrap:wrap;justify-content:space-evenly;align-items:stretch;align-content:flex-start;row-gap:16px;column-gap:0;width:100%;box-sizing:border-box}
+#estoque .stk{position:relative;background:#141c2b;border:1px solid #223150;border-radius:16px;padding:10px 8px 12px;display:flex;flex-direction:column;gap:8px;box-sizing:border-box;width:164px;flex:0 0 164px;max-width:100%;height:auto}
+#estoque .stk.low{border-color:#1d3a66}
+#estoque .stk-acts{position:absolute;top:8px;right:8px;display:flex;gap:4px;z-index:2}
+#estoque .stk-acts button{width:30px;height:30px;border-radius:9px;border:1px solid #2a3b5e;background:#141c2bcc;display:grid;place-items:center;padding:0;backdrop-filter:blur(6px)}
+#estoque .stk-acts button svg{width:15px;height:15px;fill:none;stroke:#ddd;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#estoque .stk-acts .del{border-color:#5a2a2a;background:#2a1c1ccc}
+#estoque .stk-acts .del svg{stroke:#e88}
+#estoque .stk-tile{aspect-ratio:1/1;width:96px;height:96px;max-width:96px;max-height:96px;margin:0 auto;border-radius:14px;background:transparent;border:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;padding:10%;overflow:hidden;box-sizing:border-box;flex:none}
+#estoque .stk-tile img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block}
+#estoque .stk-info{min-width:0;padding:0 2px}
+#estoque .stk-info h3{margin:0;font-size:14.5px;font-weight:700;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#estoque .stk-info small{display:block;color:#8d8d8d;font-size:11.5px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#estoque .stk-qty{display:flex;align-items:center;justify-content:center;gap:6px}
+#estoque .stk-qty button{width:32px;height:32px;border-radius:9px;border:0;background:linear-gradient(#ececec,#c9c9c9);color:#222;font-size:20px;font-weight:800;line-height:1;padding:0;flex:none}
+#estoque .stk-qty button:active{transform:scale(.96)}
+#estoque .stk-qty input{width:38px;height:32px;text-align:center;font-size:16px;font-weight:800;border-radius:9px;border:1px solid #2d4064;background:#0c1220;color:#fff;padding:0;-moz-appearance:textfield;flex:none}
+#estoque .stk-qty input::-webkit-outer-spin-button,#estoque .stk-qty input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+#estoque .stk-rows{display:flex;flex-direction:column;gap:6px}
+#estoque .stk-row{display:flex;align-items:center;justify-content:center;gap:6px}
+#estoque .stk-letter{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:10px;font-weight:800;flex:none;line-height:1}
+#estoque .stk-letter.C{background:#00a3e0;color:#fff}
+#estoque .stk-letter.M{background:#d81b60;color:#fff}
+#estoque .stk-letter.Y{background:#f2c230;color:#ffffff}
+#estoque .stk-letter.K{background:#1f1f1f;color:#eee;box-shadow:0 0 0 1px rgba(255,255,255,.38)}
+#estoque .stk-row .stk-qty{flex:none;justify-content:center}
+#estoque .stk-row.low input{border-color:#2f8cff}
+#estoque .stk-warn{font-size:9px;font-weight:800;letter-spacing:.4px;color:#5aa8ff;flex:none}
+#estoque .stk-warn:empty{display:none}
+#estoque .stk-warn.out{color:#ff8a8a}
+#estoque .stk-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:180px;border:1.5px dashed #2c4a78;background:#111a2a;color:var(--gold2);font-weight:700;border-radius:18px;cursor:pointer;font:inherit;color:var(--gold2)}
+#estoque .stk-add span{font-size:32px;line-height:1;color:var(--gold)}
+#estoque .stk-badge{display:inline-block;padding:2px 6px;border-radius:999px;font-size:9px;font-weight:800;letter-spacing:.4px;vertical-align:middle;margin-left:4px}
+#estoque .stk-badge.low{background:#5a3a10;color:#5aa8ff}
+#estoque .stk-badge.out{background:#5a1818;color:#ff8a8a}
+#estoque .field input[type=text],#estoque .field input[type=number],#estoque .field select{width:100%;height:42px;border-radius:10px;border:1px solid #2d4064;background:#0c1220;color:#fff;padding:0 12px;font:inherit}
+#estoque .field .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (min-width:800px){#estoque #es-stockWrap{padding:22px 96px 40px}
+#estoque .stk{width:240px;flex:0 0 240px;padding:12px 14px 14px;border-radius:18px;gap:10px}
+#estoque .stk-tile{width:120px;height:120px;max-width:120px;max-height:120px;border-radius:16px;padding:10%}
+#estoque .stk-qty{gap:8px}
+#estoque .stk-qty button{width:38px;height:36px;border-radius:10px;font-size:22px}
+#estoque .stk-qty input{width:48px;height:36px;border-radius:10px;font-size:17px}
+#estoque .stk-row{gap:8px}
+#estoque .stk-letter{width:22px;height:22px;font-size:11px}}
+@media (max-width:700px){#estoque #es-planWrap{padding:8px 8px calc(28px + env(safe-area-inset-bottom,0px))}
+#estoque #es-plan{max-width:none}
+#estoque .btn-search span,#estoque .t2{display:none}
+#estoque .btn-search{padding:10px}
+#estoque .conn span{display:none}
+#estoque .ctrl button{width:32px;height:32px;font-size:20px}
+#estoque .panel{border-radius:0}
+#estoque .sheet{width:100vw;max-height:92vh;top:auto;bottom:0;left:0;border-radius:20px 20px 0 0;transform:translateY(30px)}
+#estoque .sheet.show{transform:none}
+#estoque .hint{bottom:10px}
+#estoque .qty-in button{width:26px;height:28px;font-size:15px}
+#estoque .qty-in input{width:36px;height:28px;font-size:13px}
+#estoque .qty-in .fast{padding:0 5px;font-size:11px}
+#estoque .tabs button{font-size:13px;min-height:34px}}
+#estoque .unit,#estoque .unit *{pointer-events:none}
+#estoque .unit .block,#estoque .unit .block *,#estoque .unit .ctrl,#estoque .unit .ctrl *,#estoque .unit .list-btn,#estoque .unit .list-btn *{pointer-events:auto}
+/* ===== visual do Camisa Raglan (Nunito, vidro escuro, azul #2f8cff) ===== */
+#estoque{display:none;position:relative;height:calc(100vh - 54px);height:calc(100dvh - 54px);overflow:hidden;color:#e8edf5;font-family:Nunito,Inter,system-ui,sans-serif;background:transparent;
+ --bg:transparent;--panel:rgba(20,28,43,.9);--line:#9fb4d0;--gold:#2f8cff;--gold2:#5aa8ff;--muted:#8b97a8;--txt:#e8edf5;--acc:linear-gradient(180deg,#2f8cff,#1767e6);--accsh:0 0 14px rgba(40,130,255,.45);--gl:linear-gradient(180deg,rgba(28,36,52,.62),rgba(14,19,30,.62));--glb:1px solid rgba(160,190,230,.16)}
+body.estoque-on #estoque{display:block}
+body.estoque-on .app,body.estoque-on #pastas{display:none!important}
+body.estoque-on .bottom{display:none!important}
+#estoque button,#estoque input,#estoque select{font-family:Nunito,Inter,system-ui,sans-serif}
+#estoque button{color:inherit;cursor:pointer}
+#estoque .top{position:absolute;top:6px;left:18px;right:18px;height:56px;padding:0 10px 0 12px;gap:12px;z-index:6}
+#estoque .es-ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--acc);box-shadow:var(--accsh);color:#fff;flex:none}
+#estoque .es-ic svg{width:20px;height:20px}
+#estoque .t1{font-weight:700;font-size:15px;color:#f2f5fa}#estoque .t2{color:#8b97a8}
+#estoque .stat span{color:#fff;font-size:19px}#estoque .stat small{color:#8b97a8}
+#estoque .conn{color:#aeb9c9;border-radius:999px;padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);user-select:none}
+#estoque .conn i{background:#f0a83a;box-shadow:0 0 8px #f0a83a}
+#estoque .conn.on i{background:#3ddc84;box-shadow:0 0 8px #3ddc84}#estoque .conn.off i{background:#ff5a5a;box-shadow:0 0 8px #ff5a5a}
+#estoque.es-noconn .conn,#estoque .conn.off{cursor:pointer;border-color:rgba(255,90,90,.35)}
+#estoque .btn-search{background:var(--acc);color:#fff;border:1px solid #4aa0ff;border-radius:10px;padding:8px 16px;font-weight:600;font-size:14px;box-shadow:var(--accsh)}
+#estoque .btn-search:hover{filter:brightness(1.1)}
+#estoque .tabs{position:absolute;top:70px;left:18px;right:18px;height:auto;z-index:6;padding:4px;gap:6px;margin:0;border-radius:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}
+#estoque .tabs button{flex:1;min-height:34px;height:34px;border-radius:8px;background:transparent;color:#cfd6e0;font:600 13.5px Nunito,sans-serif;box-shadow:none;transition:background .15s}
+#estoque .tabs button:hover{background:rgba(255,255,255,.06)}
+#estoque .tabs button.on{background:var(--acc);color:#fff;box-shadow:var(--accsh)}
+#estoque #es-planWrap{position:absolute;inset:118px 0 0 0}
+#estoque #es-stockWrap{position:absolute;inset:118px 0 0 0;background:transparent;padding:14px 18px 28px}
+#estoque .hint{color:#6d7a8e}
+#estoque .floor{fill:rgba(12,18,30,.55)}
+#estoque .wall{stroke:#9fb4d0;filter:drop-shadow(0 0 6px rgba(90,168,255,.18))}
+#estoque .door{fill:#2f8cff;filter:drop-shadow(0 0 6px rgba(40,130,255,.6))}
+#estoque .door-gap{stroke:#0f1622}
+#estoque .shelf rect.body{stroke:#4aa0ff;stroke-opacity:.45}
+#estoque .shelf:hover rect.body,#estoque .shelf.hit rect.body{stroke:#5aa8ff;stroke-opacity:1}
+#estoque .badge{fill:#2f8cff}#estoque .badge-t{fill:#fff}
+#estoque .room-lbl{fill:#2a3b5e}
+/* janelas: vidro do site */
+#estoque .panel-back,#estoque .sheet-back{z-index:60;background:rgba(5,8,14,.62);backdrop-filter:blur(3px)}
+#estoque .panel{z-index:61;background:linear-gradient(180deg,rgba(28,36,52,.97),rgba(14,19,30,.97));border:var(--glb);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)}
+#estoque .sheet{z-index:70;background:linear-gradient(180deg,rgba(28,36,52,.97),rgba(14,19,30,.98));border:var(--glb);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.06)}
+#estoque .ph-title div,#estoque .sh-t{color:#f2f5fa}
+#estoque .icon-btn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px}
+#estoque .icon-btn:hover{background:rgba(255,255,255,.1)}
+#estoque .icon-btn svg{stroke:#cfd6e0}
+#estoque .icon-btn.es-trash:not(:disabled){background:rgba(255,70,70,.14);border-color:#ff5a5a}
+#estoque .btn{border-radius:10px;font:600 14.5px Nunito,sans-serif;padding:11px 20px}
+#estoque .btn.gold{background:var(--acc);color:#fff;border:1px solid #4aa0ff;box-shadow:0 0 18px rgba(30,120,255,.45)}
+#estoque .btn.es-ghost{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#cfd6e0}
+#estoque .btn.es-ghost:hover{background:rgba(255,255,255,.1)}
+/* botões +/− no estilo .step do site */
+#estoque .ctrl button,#estoque .qty-in button,#estoque .stk-qty button{background:rgba(40,50,68,.85);border:1px solid rgba(255,255,255,.1);color:#fff;box-shadow:none;font-weight:700}
+#estoque .ctrl button:hover,#estoque .qty-in button:hover,#estoque .stk-qty button:hover{background:rgba(60,76,104,.95)}
+#estoque .ctrl button:active{transform:translateY(1px);box-shadow:none}
+#estoque .qty-in .fast{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#cfd6e0}
+#estoque .qty-in input,#estoque .stk-qty input,#estoque .field input[type=text],#estoque .field input[type=number],#estoque .field select{background:rgba(12,18,30,.75);border:1px solid rgba(255,255,255,.08);color:#e8edf5;font-family:Nunito,sans-serif}
+#estoque .field input[type=text],#estoque .field input[type=number],#estoque .field select{height:42px;font-size:15px;border-radius:9px}
+#estoque .field input:focus,#estoque .qty-in input:focus,#estoque .stk-qty input:focus,#estoque .search-box:focus-within{outline:none;border-color:rgba(90,166,255,.6);box-shadow:0 0 0 3px rgba(47,140,255,.18)}
+#estoque .field>label{color:#8b97a8}
+#estoque .item,#estoque .res{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:11px}
+#estoque .item.on{border-color:#2f8cff;background:rgba(47,140,255,.12)}
+#estoque .res:hover{border-color:#4aa0ff;background:rgba(47,140,255,.08)}
+#estoque .res .where{color:#5aa8ff}
+#estoque .chip{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#cfd6e0;font-family:Nunito,sans-serif}
+#estoque .chip:hover{background:rgba(255,255,255,.1)}
+#estoque .chip.on{background:var(--acc);border-color:#4aa0ff;color:#fff;box-shadow:0 0 12px rgba(40,130,255,.4)}
+#estoque .chip.plus,#estoque .add-item,#estoque .stk-add{background:rgba(47,140,255,.06);border:1.5px dashed rgba(90,166,255,.45);color:#5aa8ff}
+#estoque .chip.plus:hover,#estoque .add-item:hover,#estoque .stk-add:hover{background:rgba(47,140,255,.12)}
+#estoque .stk-add span{color:#5aa8ff}
+#estoque .search-box{background:rgba(10,15,24,.85);border:1px solid rgba(90,166,255,.35);border-radius:10px}
+#estoque .search-box svg{stroke:#5aa8ff}
+#estoque .s-total b{color:#5aa8ff}
+#estoque .stk{background:var(--gl);border:var(--glb);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06)}
+#estoque .stk-tile{background:rgba(8,12,20,.6);border:1px solid rgba(255,255,255,.07)}
+#estoque .stock-title{color:#f2f5fa;font-weight:700}
+/* alerta de estoque baixo continua âmbar (aviso), zerado vermelho */
+#estoque .stk-badge.low{background:rgba(240,168,58,.18);color:#ffc266}
+#estoque .stk-warn{color:#ffc266}#estoque .stk-row.low input{border-color:#f0a83a}
+#estoque .es-toast{z-index:120;background:linear-gradient(180deg,rgba(28,36,52,.96),rgba(14,19,30,.96));border:var(--glb);border-radius:10px;color:#e8edf5;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+#estoque .slot-ghost{border-color:#5aa8ff;background:rgba(47,140,255,.1)}
+#estoque .block.sel .bf{outline-color:#5aa8ff;box-shadow:0 0 22px 6px rgba(47,140,255,.55)}
+#estoque .sb-thumb{background:rgba(160,190,230,.35)}
+@media (max-width:900px){
+ #estoque .top{left:10px;right:10px}
+ #estoque .tabs{left:10px;right:10px}
+ #estoque .tabs button{height:40px;min-height:40px;font-size:14.5px}
+ #estoque #es-planWrap,#estoque #es-stockWrap{top:122px}
+}
+@media (max-width:700px){
+ #estoque .top{height:52px;gap:8px;padding:0 8px}
+ #estoque .tabs{top:64px}
+ #estoque #es-planWrap,#estoque #es-stockWrap{top:118px}
+ #estoque #es-stockWrap{padding:12px 10px 28px}
+ #estoque .es-ic{width:32px;height:32px}
+ #estoque .conn{padding:6px}
+ #estoque .btn-search{padding:9px 11px}
+ #estoque .panel{border-radius:0}
+ #estoque .sheet{border-radius:16px 16px 0 0}
+}
+/* topo com 3 abas no celular */
+@media (max-width:560px){body.team .topbar .brand{display:none}body.team .topbar .ttab{padding:9px 12px}body.team .topbar .lock-btn span{display:none}}
