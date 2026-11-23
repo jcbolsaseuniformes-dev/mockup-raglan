@@ -2,7 +2,9 @@
 // Fala com o programa "JC Chat Bridge" no PC: direto em http://127.0.0.1:47821 (mesmo PC) ou, de outro aparelho,
 // por um documento aiJobs/<id> no Firestore (listener do documento; nada de polling na nuvem).
 // O GPT/Grok rodam na conta da Eliane, num navegador escondido no PC. Nada aqui apaga arquivos ou pastas.
-const BR=(localStorage.getItem('jc-bridge-url')||'http://127.0.0.1:47821').replace(/\/$/,'');
+/* v18i: aberto pelo endereço do PC (JC Pastas Servidor) => o bridge vem pelo próprio servidor (/bridge), assim funciona em qualquer aparelho da rede de casa */
+const BR=(localStorage.getItem('jc-bridge-url')||(window.__JC_LAN?location.origin+'/bridge':'http://127.0.0.1:47821')).replace(/\/$/,'');
+const LOOP=/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(BR);
 const P={gpt:{n:'ChatGPT',s:'GPT'},grok:{n:'Grok',s:'Grok'},vec:{n:'Vectorizer.AI',s:'Vetor'}};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const $=h=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstElementChild};
@@ -31,7 +33,7 @@ async function fit(src,budget){for(const m of [1600,1280,1024,800,640,480])for(c
 const imgsFrom=dt=>[...(dt?.items||[])].filter(i=>i.kind==='file'&&i.type.startsWith('image/')).map(i=>i.getAsFile()).filter(Boolean);
 function fmtText(t){/* markdown simples: ```bloco```, `código`, **negrito**, links; o resto é texto puro (escapado) */
  const parts=String(t||'').split(/```[\w-]*\n?/);return parts.map((p,i)=>i%2?`<pre>${esc(p.replace(/\n$/,''))}</pre>`:esc(p).replace(/`([^`\n]+)`/g,'<code>$1</code>').replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>').replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g,'<br>')).join('')}
-const fetchT=(u,o={},ms=2500)=>{const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);return fetch(u,{...o,signal:c.signal,targetAddressSpace:'loopback'}).finally(()=>clearTimeout(t))};
+const fetchT=(u,o={},ms=2500)=>{const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);return fetch(u,LOOP?{...o,signal:c.signal,targetAddressSpace:'loopback'}:{...o,signal:c.signal}).finally(()=>clearTimeout(t))};
 
 // ---------- conexão com o PC ----------
 async function probeLocal(){try{const r=await fetchT(BR+'/status',{cache:'no-store'},1800);const j=await r.json();return j&&j.app==='jc-chat-bridge'?j:null}catch(e){return null}}

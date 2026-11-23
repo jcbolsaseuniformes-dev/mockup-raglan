@@ -7,10 +7,12 @@ const toDataURL=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=
 async function thumbOf(blob,max=300){try{const bmp=await createImageBitmap(blob);const s=Math.min(1,max/Math.max(bmp.width,bmp.height));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(bmp.width*s));c.height=Math.max(1,Math.round(bmp.height*s));
  c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);bmp.close?.();let u=c.toDataURL('image/webp',.82);if(!u.startsWith('data:image/webp'))u=c.toDataURL('image/png');return u}catch(e){return''}}
 export async function sendOrder({company,csv,info,images,onProgress=()=>{}}){
- const cfg=window.PASTAS_CONFIG?.firebase;if(!cfg?.apiKey)throw new Error('sem configuração');
+ let fs,db,pre='';const lan=await (window.__JC_LAN_P||Promise.resolve(null));
+ if(lan&&!localStorage.getItem('raglan-lan-off')){/* v18i: site aberto pelo PC da loja => o pedido vai direto para as pastas do PC */fs=await import('./lanfs.js?v=18i');db=fs.getFirestore()}
+ else{const cfg=window.PASTAS_CONFIG?.firebase;if(!cfg?.apiKey)throw new Error('sem configuração');
  const V=window.PASTAS_CONFIG.firebaseOptions?.sdkVersion||'10.12.2',B=`https://www.gstatic.com/firebasejs/${V}/`;
- const [{initializeApp,getApps},fs]=await Promise.all([import(B+'firebase-app.js'),import(B+'firebase-firestore.js')]);
- const app=getApps().find(a=>a.name==='pedido')||initializeApp(cfg,'pedido');const db=fs.getFirestore(app);const pre=window.PASTAS_CONFIG.firebaseOptions?.prefix||'';
+ const [{initializeApp,getApps},f]=await Promise.all([import(B+'firebase-app.js'),import(B+'firebase-firestore.js')]);fs=f;
+ const app=getApps().find(a=>a.name==='pedido')||initializeApp(cfg,'pedido');db=fs.getFirestore(app);pre=window.PASTAS_CONFIG.firebaseOptions?.prefix||''}
  const d=(c,id)=>fs.doc(db,pre+c,id);const by='cliente-'+uid();const M=()=>({at:fs.serverTimestamp(),by});
  // unique folder name
  let name=company;const z=n=>String(n).padStart(2,'0');const now=new Date();

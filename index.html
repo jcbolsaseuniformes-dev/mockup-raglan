@@ -11,13 +11,18 @@
 window.PASTAS_CONFIG={
   firebase:{apiKey:"AIzaSyCpdVs0PW0t-u4fwlGQzFSbMTIyz018iBQ",authDomain:"mockup-raglan.firebaseapp.com",projectId:"mockup-raglan",storageBucket:"mockup-raglan.firebasestorage.app",messagingSenderId:"848983570548",appId:"1:848983570548:web:380cc7cab673c120fbf921"},
   firebaseOptions:{anonymousAuth:false,prefix:'',sdkVersion:'10.12.2'},
-  maxImageSize:1600,jpegQuality:0.85
+  maxImageSize:1600,jpegQuality:0.85,
+  /* v18i: servidor das Pastas no PC da loja (rede de casa). No GitHub a aba Pastas mostra este endereço. */
+  lanServer:{url:'http://192.168.15.11:8090',porta:8090}
 };
+/* v18i: aberto pelo próprio PC (JC Pastas Servidor)? então as pastas são lidas/salvas no PC */
+window.__JC_LAN=null;window.__JC_LAN_P=(/github\.io$/.test(location.hostname)||!/^https?:$/.test(location.protocol))?Promise.resolve(null):
+ fetch('/jc-api/info',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>window.__JC_LAN=j&&j.app==='jc-pastas'?j:null).catch(()=>null);
 </script>
 <script>/* v13: device class for performance tweaks (Android / low-end: lower DPR, no heavy blur) */
 (()=>{const ua=navigator.userAgent,and=/Android/i.test(ua),low=(navigator.deviceMemory&&navigator.deviceMemory<=4)||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4),mob=matchMedia('(pointer:coarse)').matches;
  window.__dev={android:and,low:!!low,mobile:mob};const c=document.documentElement.classList;if(and)c.add('android');if(and||low)c.add('lowfx');if(mob)c.add('touch')})();</script>
-<link rel="stylesheet" href="pastas.css?v=18h">
+<link rel="stylesheet" href="pastas.css?v=18i">
 <style>
 *{box-sizing:border-box}html,body{height:100%}
 body{margin:0;font-family:Nunito,Inter,system-ui,sans-serif;color:#e8edf5;overflow:hidden;
@@ -391,7 +396,7 @@ document.getElementById('csv').onclick=async()=>{const btn=document.getElementBy
   st.set('Gerando imagens do mockup…',5);
   const images=(await renderExports()).map(([n,b])=>({name:n,blob:b}));
   for(const a of AREAS)if(a.mesh.material.map&&a.srcFile){const ext=(a.srcFile.name.match(/\.[a-z0-9]{2,5}$/i)||[''])[0];images.push({name:'arte – '+a.nome+ext,blob:a.srcFile})}
-  const {sendOrder}=await import('./pedido.js');
+  const {sendOrder}=await import('./pedido.js?v=18i');
   const r=await sendOrder({company,csv:buildCSV(),info,images,onProgress:(i,n)=>st.set(`Enviando ${Math.min(i+1,n)} de ${n}…`,10+90*i/n)});
   st.ok(r.name)}
  catch(e){console.error(e);st.fail()}
@@ -406,7 +411,7 @@ const TEAM_HASH='45ca63502d8fd20eaf1e4cf0854055f2108104e992a5cc45414d7f63b421d65
 const isTeamHash=()=>location.hash.startsWith('#/pastas');
 let team=false,loaded=false;
 const sha=async t=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))].map(b=>b.toString(16).padStart(2,'0')).join('');
-async function loadPastas(){if(loaded)return;loaded=true;await import('./pastas.js?v=18h')}
+async function loadPastas(){if(loaded)return;loaded=true;await import('./pastas.js?v=18i')}
 function enterTeam(){if(team)return;team=true;document.body.classList.remove('client');document.body.classList.add('team')}
 function askPassword(){return new Promise(res=>{const m=document.createElement('div');m.className='gate';m.innerHTML=`<form class="gate-box glass" autocomplete="off"><div class="gate-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div><h3>Área da equipe</h3><p>Digite a senha para acessar as Pastas.</p><input type="password" placeholder="Senha" aria-label="Senha" autocomplete="current-password"><div class="gate-err" hidden>Senha incorreta</div><div class="gate-act"><button type="button" class="gate-c">Ver mockup</button><button type="submit" class="gate-ok">Entrar</button></div></form>`;
  document.body.append(m);const f=m.querySelector('form'),i=m.querySelector('input'),er=m.querySelector('.gate-err');setTimeout(()=>i.focus(),50);

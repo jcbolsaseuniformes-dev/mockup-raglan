@@ -122,11 +122,11 @@ async function fitDataURL(blob,sizes=[1200,1000,800,640,480],quals=[.82,.72,.62,
 class FirebaseStore extends BaseStore{
  kind='firebase';
  constructor(cfg,opts={}){super();this.cfg=cfg;this.opts=opts;this.full=new Map()}
- async init(){const V=this.opts.sdkVersion||'10.12.2',B=`https://www.gstatic.com/firebasejs/${V}/`;
+ async init(){if(this.opts.lanFs){/* v18i: dados no PC da loja (JC Pastas Servidor), mesma interface do Firestore */const fs=this.opts.lanFs;this.fs=fs;this.lan=true;this.db=fs.getFirestore()}else{const V=this.opts.sdkVersion||'10.12.2',B=`https://www.gstatic.com/firebasejs/${V}/`;
   const [{initializeApp},fs]=await Promise.all([import(B+'firebase-app.js'),import(B+'firebase-firestore.js')]);
   this.fs=fs;const app=initializeApp(this.cfg,'pastas');
   if(this.opts.anonymousAuth){const au=await import(B+'firebase-auth.js');await au.signInAnonymously(au.getAuth(app))}
-  this.db=fs.getFirestore(app);{const emu=localStorage.getItem('raglan-emu');if(emu){const[h,pt]=emu.split(':');fs.connectFirestoreEmulator(this.db,h,+pt)}}/* v17: tests only */const pre=this.opts.prefix||'';this.cf=pre+'folders';this.cp=pre+'photos';this.cd=pre+'photoData';this.cr=pre+'relatedPhotos';this.cq=pre+'printQueue';
+  this.db=fs.getFirestore(app)}const fs=this.fs;{const emu=localStorage.getItem('raglan-emu');if(emu){const[h,pt]=emu.split(':');fs.connectFirestoreEmulator(this.db,h,+pt)}}/* v17: tests only */const pre=this.opts.prefix||'';this.cf=pre+'folders';this.cp=pre+'photos';this.cd=pre+'photoData';this.cr=pre+'relatedPhotos';this.cq=pre+'printQueue';
   const listen=(col,map)=>new Promise(res=>{let first=true;fs.onSnapshot(fs.collection(this.db,col),snap=>{let onlyNotes=true;
    snap.docChanges().forEach(ch=>{const d={id:ch.doc.id,...ch.doc.data()};if(ch.type==='removed'){map.delete(d.id);this.full.delete(d.id);onlyNotes=false}else{const old=map.get(d.id);if(!old||Object.keys(d).some(k=>k!=='note'&&d[k]!==old[k]))onlyNotes=false;map.set(d.id,d)}});
    if(first){first=false;res()}else this.emit(onlyNotes?'remote-note':'data')},err=>{console.warn('Firebase:',err.message);this._lerr=true;res()})});
@@ -143,7 +143,7 @@ class FirebaseStore extends BaseStore{
     whichever client (or hosonsoft-sync on the PC) gets there first. autoDays/<yyyy-mm-dd> marks the day as done, so a folder
     that was renamed, moved or deleted by hand is never re-created. Deterministic ids + transaction => no duplicates with
     several devices. Only runs when every listener loaded from the server (never on partial/failed data). NEVER deletes anything. */
- async ensureToday(){if(this._et||this._lerr||localStorage.getItem('raglan-autoday-off'))return;const k=spDay();if(this._etDone===k.key)return;this._et=true;
+ async ensureToday(){if(this._et||this._lerr||localStorage.getItem('raglan-autoday-off'))return;if(this.opts.autoDayGate&&!this.opts.autoDayGate())return;/* v18i: no PC, só depois de importar as pastas da nuvem (evita pasta do mês duplicada) */const k=spDay();if(this._etDone===k.key)return;this._et=true;
   const fs=this.fs,mref=this._d(this.cad,k.key);
   try{await fs.runTransaction(this.db,async tx=>{const mk=await tx.get(mref);if(mk.exists())return;
     const live=f=>f&&!f.isHistory;let mid=([...this.f.values()].find(f=>live(f)&&!f.parentId&&f.name===k.month)||{}).id,newM=null,newD=null;
@@ -227,6 +227,9 @@ class FirebaseStore extends BaseStore{
 }
 
 async function createStore(){
+ /* v18i: aberto pelo endereço do PC (http://<PC>:8090) => pastas salvas no PC, tempo real pela rede de casa */
+ const lan=await (window.__JC_LAN_P||Promise.resolve(null));
+ if(lan&&!localStorage.getItem('raglan-lan-off')){const lfs=await import('./lanfs.js?v=18i');const st=await new FirebaseStore({},{lanFs:lfs,autoDayGate:()=>{const e=window.__JC_LAN?.importacao?.estado;return e==='concluida'||e==='dispensada'}}).init();st.lanStatus=lfs.status;st.lanInfo=lfs.info;return st}
  if(CFG.firebase&&CFG.firebase.apiKey){try{return await new FirebaseStore(CFG.firebase,CFG.firebaseOptions).init()}catch(e){console.warn('Firebase indisponível, usando armazenamento local:',e.message)}}
  return new IndexedDBStore().init()}
 
@@ -256,7 +259,26 @@ function modal({title,text='',input=false,value='',ok='Salvar',danger=false,plac
  document.addEventListener('keydown',key,true);document.body.append(m);(inp||m.querySelector('[data-a=s]')).focus()})}
 function toast(t){const e=$(`<div class="toast glass">${esc(t)}</div>`);document.body.append(e);setTimeout(()=>e.remove(),2200)}
 
+/* v18i: as pastas agora ficam no PC da loja. No site do GitHub (https) o navegador não deixa falar com o PC (http na rede de casa),
+   então a aba Pastas mostra o endereço do PC. O Mockup continua igual aqui. (localStorage raglan-pastas-nuvem=1 volta a usar a nuvem.) */
+if(CFG.lanServer&&/github\.io$/.test(location.hostname)&&!localStorage.getItem('raglan-pastas-nuvem')){
+ const L=CFG.lanServer,h=location.hash.startsWith('#/pastas')?location.hash:'#/pastas';const u=L.url+'/'+h,loc='http://localhost:'+(L.porta||8090)+'/'+h;
+ const box=$(`<div class="lan-card glass"><div class="lan-ic">${FOLDER_SVG}</div><h2>As pastas agora ficam no PC da loja</h2>
+  <p>Abra por este endereço, no PC ou em qualquer celular/computador ligado no mesmo Wi-Fi:</p>
+  <a class="lan-go" href="${esc(u)}">${esc(L.url.replace(/^http:\/\//,''))}</a>
+  <p class="lan-sub">No próprio PC também funciona: <a href="${esc(loc)}">localhost:${L.porta||8090}</a></p>
+  <p class="lan-sub">O PC precisa estar ligado. O Mockup continua funcionando normalmente aqui.</p></div>`);
+ document.getElementById('pastas').append(box);
+ const rt=()=>{const on=location.hash.startsWith('#/pastas');document.body.classList.toggle('pastas-on',on);document.querySelectorAll('.ttab').forEach(t=>t.classList.toggle('sel',t.dataset.tab===(on?'pastas':'mockup')));
+  if(on)box.querySelector('.lan-go').href=L.url+'/'+location.hash;else dispatchEvent(new Event('resize'))};
+ document.querySelectorAll('.ttab').forEach(t=>t.onclick=()=>{location.hash=t.dataset.tab==='pastas'?'#/pastas':'#/mockup'});addEventListener('hashchange',rt);rt();
+ await new Promise(()=>{})}
 const store=await createStore();window.__pastasStore=store;if(store.kind==='local')store.ensureHistory();
+if(store.lan){/* v18i: aviso discreto quando o PC não responde / importação da nuvem pendente */
+ const bar=$(`<div class="lan-bar" hidden></div>`);document.body.append(bar);let off=false;
+ const paint=()=>{const e=window.__JC_LAN?.importacao?.estado;const t=off?'Sem conexão com o PC da loja. Tentando de novo…':e==='aguardando-regras'?'Pastas antigas da nuvem ainda não importadas: falta publicar as regras do Firebase.':e==='importando'?'Importando as pastas antigas da nuvem para o PC…':'';bar.textContent=t;bar.hidden=!t;bar.classList.toggle('off',off)};
+ store.lanStatus.subs.add(v=>{off=!v;paint()});paint();
+ setInterval(async()=>{try{const j=await store.lanInfo();const was=window.__JC_LAN?.importacao?.estado;window.__JC_LAN=j;paint();if(j.importacao?.estado==='concluida'&&was!=='concluida')store.ensureToday()}catch(e){}},30000)}
 const root=document.getElementById('pastas');let cur=null,lastView=undefined;
 // v12: split view — left 80% folders/photos, right 20% "Fila de impressão"
 const main=$(`<div class="p-main"></div>`);const qp=$(`<aside class="p-queue" aria-label="Fila de impressão"></aside>`);
@@ -274,7 +296,7 @@ function render(){
  const crumbs=[{id:null,name:'Minhas pastas'},...path];
  crumbs.forEach((x,i)=>{if(i)head.append($(`<span class="crumb-sep">›</span>`));const b=$(`<button class="crumb${i===crumbs.length-1?' cur':''}">${esc(x.name)}</button>`);
   if(i<crumbs.length-1){b.onclick=()=>go(x.id);dropTarget(b,x.id)}head.append(b)});
- head.append($(`<span class="p-info">${c.folders} pasta${c.folders===1?'':'s'} · ${c.photos} foto${c.photos===1?'':'s'}${store.kind==='firebase'?' · sincronizado':' · salvo neste navegador'}${matchMedia('(pointer:coarse)').matches?' · toque e segure para mover':''}</span>`));
+ head.append($(`<span class="p-info">${c.folders} pasta${c.folders===1?'':'s'} · ${c.photos} foto${c.photos===1?'':'s'}${store.lan?' · salvo no PC':store.kind==='firebase'?' · sincronizado':' · salvo neste navegador'}${matchMedia('(pointer:coarse)').matches?' · toque e segure para mover':''}</span>`));
  head.querySelector('.p-back')?.addEventListener('click',()=>go(path.length>1?path[path.length-2].id:null));
  main.append(head);
  const grid=$(`<div class="p-grid"></div>`);main.append(grid);
@@ -378,8 +400,8 @@ async function upload(files){const list=[...files].filter(f=>f.type.startsWith('
  for(const f of list){try{await store.addPhoto(target,await compress(f),f.name);ok++}catch(e){console.warn(e)}}toast(`${ok} foto${ok===1?'':'s'} enviada${ok===1?'':'s'}`)}
 /* v18: chat IA por cartão (aichat.js carregado só quando usado) */
 const AIC_IC='<svg viewBox="0 0 24 24"><path d="M6 3.5h12a3 3 0 0 1 3 3v7.5a3 3 0 0 1-3 3h-5l-4.5 4v-4H6a3 3 0 0 1-3-3V6.5a3 3 0 0 1 3-3z" fill="#22c55e" stroke="#0f1520" stroke-width="1.4" stroke-linejoin="round"/><path d="M7.5 8.6h9M7.5 12h6" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
-async function openAI(p){if(editing)return;try{const m=await import('./aichat.js?v=18h');const f=store.folder(store.homeOf?store.homeOf(p.id):p.folderId);m.openAIChat({store,photo:p,name:dispName(p),folderName:f?f.name:'',clientId:CLIENT_ID})}catch(e){console.warn('chat IA:',e);toast('Não consegui abrir o chat da IA')}}
-async function openQuickAI(){try{const m=await import('./aichat.js?v=18h');m.openAIChat({store,photo:null,name:'Chat rápido de IA',folderName:'',clientId:CLIENT_ID,ephemeral:true})}catch(e){console.warn('chat IA rápido:',e);toast('Não consegui abrir o chat da IA')}}
+async function openAI(p){if(editing)return;try{const m=await import('./aichat.js?v=18i');const f=store.folder(store.homeOf?store.homeOf(p.id):p.folderId);m.openAIChat({store,photo:p,name:dispName(p),folderName:f?f.name:'',clientId:CLIENT_ID})}catch(e){console.warn('chat IA:',e);toast('Não consegui abrir o chat da IA')}}
+async function openQuickAI(){try{const m=await import('./aichat.js?v=18i');m.openAIChat({store,photo:null,name:'Chat rápido de IA',folderName:'',clientId:CLIENT_ID,ephemeral:true})}catch(e){console.warn('chat IA rápido:',e);toast('Não consegui abrir o chat da IA')}}
 function lightbox(id){const p=typeof id==='object'?id:store.photo(id);if(!p)return;const lb=$(`<div class="lb"><button class="x" title="Fechar">×</button><img src="${store.photoURL(p)}">${p.note?`<div class="cap">${esc(p.note)}</div>`:''}</div>`);
  const close=()=>{lb.remove();document.removeEventListener('keydown',k)};const k=e=>{if(e.key==='Escape')close()};lb.onclick=e=>{if(e.target!==lb.querySelector('img'))close()};document.addEventListener('keydown',k);document.body.append(lb);store.fullURL(p).then(u=>{if(u)lb.querySelector('img').src=u}).catch(()=>{})}
 
